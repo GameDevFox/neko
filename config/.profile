@@ -1,2 +1,2 @@
-export NEKO="$HOME/royal-neko"
+export NEKO="$HOME/neko"
 PATH="$PATH:$NEKO/bin"

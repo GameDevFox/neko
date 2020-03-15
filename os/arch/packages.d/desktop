@@ -2,5 +2,9 @@ eog # Image Viewer (eye of gnome)
 gnome-screenshot # Screenshots
 gnome-system-monitor # System Monitor
 rofi # Application Launcher
-# nautilus # File Manager
-thunar # File Manager
+
+nautilus # File Manager
+# thunar # File Manager alternative
+
+nitrogen # Wallpaper util alternative
+# feh # Wallpaper util alternative

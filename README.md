@@ -1,4 +1,4 @@
-royal-neko
+neko
 ==========
 
-A set of settings of scripts for linux platforms
+My personal utils, config and preferences

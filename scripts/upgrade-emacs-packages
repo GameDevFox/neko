@@ -1,4 +1,0 @@
-(setq inhibit-startup-screen t)
-(list-packages)
-(package-menu-mark-upgrades)
-(occur "^\\S ")

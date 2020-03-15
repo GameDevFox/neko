@@ -15,4 +15,4 @@ bindkey -s 'q\e[B' '\\'
 bindkey -s 'q\e[C' '>'
 bindkey -s 'q\e[D' '<'
 
-alias vim='vim -S ~/royal-neko/mobile/vimrc-mobile'
+alias vim='vim -S ~/neko/mobile/vimrc-mobile'

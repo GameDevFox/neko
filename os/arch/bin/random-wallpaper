@@ -1,13 +1,13 @@
 #!/bin/bash
-mkdir -p ~/.config/royal-neko
-touch ~/.config/royal-neko/current-wallpaper
+mkdir -p ~/.config/neko
+touch ~/.config/neko/current-wallpaper
 
-lastImage=$(cat ~/.config/royal-neko/current-wallpaper)
+lastImage=$(cat ~/.config/neko/current-wallpaper)
 
 image=$(find /usr/share/backgrounds/fox -type f | shuf | head -n1)
 while [ "${image}" == "${lastImage}" ]; do
     image=$(find /usr/share/backgrounds/fox -type f | shuf | head -n1)
 done
 
-echo "${image}" > ~/.config/royal-neko/current-wallpaper
+echo "${image}" > ~/.config/neko/current-wallpaper
 feh --bg-fill "${image}"

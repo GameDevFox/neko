@@ -25,7 +25,7 @@ alias pu='pushd'
 alias po='popd'
 
 # extra
-alias neko-pull='git -C ~/royal-neko/ pull'
+alias neko-pull='git -C ~/neko/ pull'
 alias np='neko-pull'
 
 # kubernetes
@@ -82,12 +82,6 @@ alias pm='pacman'
 alias sc='systemctl'
 alias scu='systemctl --user'
 
-# emacs
-alias em='emacsclient --alternate-editor="" -t'
-alias emk="emacsclient -e '(kill-emacs)'"
-alias elisp='emacs -nw --no-init-file --load'
-alias emacs-upgrade='elisp ~/royal-neko/scripts/upgrade-emacs-packages'
-
 # docker
 alias dps='docker ps -a'
 alias dc='docker-compose'
@@ -101,5 +95,5 @@ alias xc='xclip -selection clipboard'
 # graveyard
 
 ## mobile
-#alias mobile-mode='source ~/royal-neko/os/mobile/mobile-mode'
-#alias mvim='vim -S ~/royal-neko/os/mobile/vimrc-mobile'
+#alias mobile-mode='source ~/neko/os/mobile/mobile-mode'
+#alias mvim='vim -S ~/neko/os/mobile/vimrc-mobile'

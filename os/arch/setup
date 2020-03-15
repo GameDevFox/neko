@@ -18,17 +18,17 @@ usermod -aG wheel fox
 # add wheel rule to sudoers.d
 echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel
 
-# Get git so we can clone royal-neko
+# Get git so we can clone neko
 pacman --noconfirm -S git
 
-# royal-neko setup
+# neko setup
 pushd ~fox
-  sudo -u fox git clone https://github.com/Prince86EKNJ/royal-neko.git
-  sudo -u fox ./royal-neko/os/arch/user-setup
+  sudo -u fox git clone https://github.com/GameDevFox/neko.git
+  sudo -u fox ./neko/os/arch/user-setup
 popd
 
-# get package list from royal-neko
-archPackages=$(cat ~fox/royal-neko/os/arch/packages | grep -v "^#")
+# get package list from neko
+archPackages=$(cat ~fox/neko/os/arch/packages | grep -v "^#")
 pacman --noconfirm --needed -S ${archPackages}
 
 # Finished it off with a password

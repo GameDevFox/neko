@@ -1,6 +1,6 @@
 #!/bin/bash
 config="$HOME/.config"
-neko_config="${NEKO:-$HOME/royal-neko}/config"
+neko_config="${NEKO:-$HOME/neko}/config"
 
 cd "$neko_config"
 files=$()

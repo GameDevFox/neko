@@ -1,9 +1,9 @@
 " Guarantees that this file is only loaded once
-if !exists("g:royalHimeVimrcLoaded") || g:royalHimeVimrcLoaded == 0
+if !exists("g:nekoVimrcLoaded") || g:nekoVimrcLoaded == 0
 	"""""""""""""
 	" Load Once "
 	"""""""""""""
-	let g:royalHimeVimrcLoaded = 1
+	let g:nekoVimrcLoaded = 1
 
 	""""""""""""
 	" Settings "
@@ -40,8 +40,8 @@ if !exists("g:royalHimeVimrcLoaded") || g:royalHimeVimrcLoaded == 0
 	command! WhitespaceHighlight normal /\s\+$<CR>
 	command! WhitespaceCleanup %s/\s\+$//gc
 
-	command! EditVimrc vnew ~/royal-neko/vimrc
-	command! ReloadVimrc source ~/royal-neko/vimrc
+	command! EditVimrc vnew ~/neko/vimrc
+	command! ReloadVimrc source ~/neko/vimrc
 	command! SaveAndReloadVimrc write | ReloadVimrc
 
 	command! SimpleSave set nowritebackup|set noswapfile
@@ -54,7 +54,7 @@ if !exists("g:royalHimeVimrcLoaded") || g:royalHimeVimrcLoaded == 0
 	noremap <Leader>h :WhitespaceHighlight<CR>
 	noremap <Leader>l :vnew .vimrc<CR>
 	noremap <Leader>n :set invrelativenumber<CR>
-	noremap <Leader>r :let g:royalHimeVimrcLoaded=0<CR>:SaveAndReloadVimrc<CR>
+	noremap <Leader>r :let g:nekoVimrcLoaded=0<CR>:SaveAndReloadVimrc<CR>
 	noremap <Leader>s :!sort<CR>
 	noremap <Leader>w :WhitespaceCleanup<CR>
 	noremap <Leader>yw m`bye``
@@ -80,7 +80,7 @@ if !exists("g:royalHimeVimrcLoaded") || g:royalHimeVimrcLoaded == 0
 	""""""""""""""""
 	" Local Config "
 	""""""""""""""""
-	let localVimrc = $HOME."/royal-neko/local/vimrc"
+	let localVimrc = $HOME."/neko/local/vimrc"
 	if filereadable(localVimrc)
 		exec "source ".localVimrc
 	endif
