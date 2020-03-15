@@ -1,13 +1,13 @@
 ## xorg
 xorg-server
 
-#xorg-drivers
-#xbindkeys
+# xorg-drivers
+# xbindkeys
 
 ## lightdm
 lightdm
 lightdm-gtk-greeter
-#lightdm-gtk-greeter-settings
+# lightdm-gtk-greeter-settings
 
 ## a window manager
 i3-gaps
@@ -15,7 +15,7 @@ i3status
 
 ## a terminal
 gnome-terminal
-#rxvt-unicode
+# rxvt-unicode
 
 ## utilties
 arandr
@@ -26,4 +26,4 @@ ttf-dejavu # For gnome-terminal
 ttf-droid  # For google-chrome
 
 ## extra
-#compton    # composite manager
+# picom    # composite manager (formerly compton)
