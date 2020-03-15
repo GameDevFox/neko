@@ -2,8 +2,14 @@
 export TERMINAL=gnome-terminal
 
 # if i3 is running, run cairo-compmgr
-if [[ "$DESKTOP_SESSION" == "i3" ]] && [[ -x /usr/bin/cairo-compmgr ]]; then
-    cairo-compmgr &
+if [[ "$DESKTOP_SESSION" == "i3" ]] && command -v cairo-compmgr; then
+  cairo-compmgr &
 fi
 
-[ -x /usr/bin/xbindkeys ] && xbindkeys &
+if command -v xbindkeys; then
+  xbindkeys &
+fi
+
+if command -v nitrogen; then
+  nitrogen --restore
+fi
