@@ -1,4 +1,5 @@
 eog # Image Viewer (eye of gnome)
+gnome-calculator
 gnome-screenshot # Screenshots
 gnome-system-monitor # System Monitor
 rofi # Application Launcher
