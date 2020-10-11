@@ -25,6 +25,14 @@
     });
     """
 
+  "import react":
+    prefix: "React"
+    body: "import React from 'react';"
+
+  "import styled-components":
+    prefix: "styled"
+    body: "import styled from 'styled-components';"
+
   katana:
     prefix: "katana"
     body: "@gamedevfox/katana"

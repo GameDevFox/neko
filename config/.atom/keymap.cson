@@ -4,12 +4,12 @@
 "body":
     "ctrl-space c": "application:open-your-config"
     "ctrl-space i": "application:open-your-init-script"
-    "ctrl-space k": "application:open-your-keymap"
-    "ctrl-space ctrl-k": "settings-view:show-keybindings"
+    "ctrl-space k": "settings-view:show-keybindings"
+    "ctrl-space ctrl-k": "application:open-your-keymap"
     "ctrl-space p": "settings-view:view-installed-packages"
     "ctrl-space ctrl-p": "settings-view:install-packages-and-themes"
     "ctrl-space s": "application:open-your-snippets"
     "ctrl-space ctrl-s": "application:open-your-stylesheet"
 
-    "shift-enter": "easy-motion-redux:words_starting"
-    "ctrl-shift-enter": "easy-motion-redux:words"
+    "alt-enter": "easy-motion-redux:words"
+    "alt-shift-enter": "easy-motion-redux:letter-select"
