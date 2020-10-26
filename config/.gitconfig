@@ -2,6 +2,7 @@
 	excludesFile = ~/.gitignore
 [credential]
 	helper = cache
+	username = GameDevFox
 [include]
 	path = ./.neko/.gitconfig
 [push]
@@ -9,7 +10,3 @@
 [user]
 	name = Edward Nicholes Jr.
 	useConfigOnly = true
-[credential "https://github.com"]
-	username = Prince86EKNJ
-[credential "https://gitlab.com"]
-	username = GameDevFox
