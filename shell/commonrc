@@ -52,6 +52,6 @@ export LESS_TERMCAP_us=$'\E[01;33m'
 
 brewGrepPath='/usr/local/opt/grep/libexec/gnubin'
 
-if [ -d brewGrepPath ]; then
+if [ -d $brewGrepPath ]; then
 	PATH="$brewGrepPath:$PATH"
 fi
