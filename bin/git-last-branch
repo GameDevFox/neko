@@ -1,0 +1,1 @@
+git reflog --decorate | grep -Po '(?<=\S{7} \()(.*)(?=\) HEAD\@)' | awk '{ print $NF }' | uniq | tail -n+2 | head -n1
