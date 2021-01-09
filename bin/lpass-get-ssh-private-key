@@ -1,0 +1,3 @@
+#!/bin/bash
+lpass show --field='Private Key' 'GameDevFox@gmail.com SSH RSA Key' > /tmp/id_rsa
+chmod 600 /tmp/id_rsa
