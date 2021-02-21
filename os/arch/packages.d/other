@@ -34,6 +34,7 @@ dnsmasq
 emacs
 keepassxc
 konsole         # a good but heavy terminal
+lastpass-cli
 qterminal
 steam
 the_silver_searcher

@@ -1,14 +1,17 @@
 #!/bin/bash
-drive='/dev/sda'
-
-if [ -z "$drive" ]; then
-	echo "Please set \"\$drive\" in this script"
-	exit 1
-fi
-
 pacman -S grub
-grub-install --target=i386-pc "$drive"
+
+### EFI Installation ###
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+
+### MBR Installation ###
+# drive='/dev/sda'
+# if [ -z "$drive" ]; then
+	# echo "Please set \"\$drive\" in this script"
+	# exit 1
+# fi
+
+# grub-install --target=i386-pc "$drive"
+
 grub-mkconfig -o /boot/grub/grub.cfg
 
-# -or-
-# grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB

@@ -31,8 +31,8 @@ popd
 archPackages=$(cat ~fox/neko/os/arch/packages | grep -v "^#")
 pacman --noconfirm --needed -S ${archPackages}
 
-# Finished it off with a password
-passwd fox
-
 # Disable root login (lock password)
 passwd root -l
+
+# Finished it off with a password
+passwd fox

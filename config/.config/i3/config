@@ -242,23 +242,6 @@ bindsym $mod+Print exec gnome-screenshot --window
 
 bindsym $mod+y exec ytdl
 
-# set $left LeftDisplay
-# set $center CenterDisplay
-# set $right RightDisplay
-#
-# workspace 1 output $left
-# workspace 4 output $left
-# workspace 7 output $left
-#
-# workspace 2 output $center
-# workspace 5 output $center
-# workspace 8 output $center
-# workspace 10 output $center
-#
-# workspace 3 output $right
-# workspace 6 output $right
-# workspace 9 output $right
-
 # Start i3bar to display a workspace bar (plus the system information i3status
 # finds out, if available)
 bar {
@@ -266,19 +249,22 @@ bar {
         # tray_output $center
 }
 
-#
+for_window [class="^Keepassx2$"] floating enable
+for_window [title="QEMU"] floating enable
+
+# set $left LeftDisplay
+# set $center CenterDisplay
+# set $right RightDisplay
+
 # workspace 1 output $left
 # workspace 4 output $left
 # workspace 7 output $left
-#
+
 # workspace 2 output $center
 # workspace 5 output $center
 # workspace 8 output $center
 # workspace 10 output $center
-#
+
 # workspace 3 output $right
 # workspace 6 output $right
 # workspace 9 output $right
-
-for_window [class="^Keepassx2$"] floating enable
-for_window [title="QEMU"] floating enable
