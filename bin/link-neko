@@ -14,7 +14,8 @@ find . -type f | sort | while read file; do
   dest="$(realpath -m "$dest_dir/$base_name")"
 
   mkdir -p $dest_dir
-  if [ "$source" != "$dest"  ]; then
+  if [ "$source" != "$dest" ]; then
+    mkdir -p "$dest_dir"
     ln -s "$source" "$dest_dir/$base_name"
     [ "$?" = "0" ] && echo "Created link from $source to $dest"
   fi
