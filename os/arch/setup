@@ -12,8 +12,10 @@ mkinitcpio -p linux
 # setup fox user
 useradd -m -s /usr/bin/zsh -u 10000 fox
 
-# add user `fox` to group `wheel`
-usermod -aG wheel fox
+
+# add user `fox` to groups `docker` and `wheel`
+groupadd docker
+usermod -aG docker,wheel fox
 
 # add wheel rule to sudoers.d
 echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel

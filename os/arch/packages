@@ -1,5 +1,6 @@
 curl
 dhcpcd
+docker
 git
 hexedit
 htop
@@ -26,5 +27,6 @@ zsh-syntax-highlighting
 
 chromium
 code
+dbeaver
 firefox
 torbrowser-launcher
