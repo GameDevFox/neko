@@ -21,8 +21,8 @@ echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel
 # Get git so we can clone neko
 pacman --noconfirm -S git
 
-NEKO=~fox/neko
-PATH=$PATH:$NEKO/bin
+export NEKO=~fox/neko
+export PATH=$PATH:$NEKO/bin
 
 # neko setup
 pushd ~fox
