@@ -9,6 +9,7 @@ lsof
 net-tools
 man-db
 man-pages
+ntfs-3g
 openssh
 polkit
 pkgfile
