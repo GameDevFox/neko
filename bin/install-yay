@@ -5,4 +5,4 @@ cd "$prod_dir"
 git clone https://aur.archlinux.org/yay
 cd yay
 
-makepkg --syncdeps --install
+makepkg --noconfirm --syncdeps --install

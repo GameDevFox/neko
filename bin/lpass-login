@@ -1,0 +1,4 @@
+# mkdir -p ~/.local
+if ! lpass status ; then
+  lpass login GameDevFox@gmail.com
+fi

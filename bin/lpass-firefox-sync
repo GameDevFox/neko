@@ -1,0 +1,4 @@
+lpass-login
+
+# Firefox Sync
+lpass show --password --clip 5343675075780212218
