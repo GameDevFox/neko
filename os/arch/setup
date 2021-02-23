@@ -21,22 +21,22 @@ echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel
 # Get git so we can clone neko
 pacman --noconfirm -S git
 
-# get package list from neko
-archPackages=$(cat ~fox/neko/os/arch/packages | grep -v "^#")
-pacman --noconfirm --needed -S ${archPackages}
-
-PATH=$PATH:~fox/neko/bin
+NEKO=~fox/neko
+PATH=$PATH:$NEKO/bin
 
 # neko setup
 pushd ~fox
   sudo -u fox git clone https://github.com/GameDevFox/neko.git
 
+  # get package list from neko
+  archPackages=$(cat ~fox/neko/os/arch/packages | grep -v "^#")
+  pacman --noconfirm --needed -S ${archPackages}
+
   for group in audio display-manager desktop media; do
     pacman -S --noconfirm $(neko-packages $group)
   done
 
-  sudo -u fox install-yay
-  sudi -u fox install-wallpaper
+  sudo -u fox install-wallpaper
 
   sudo -u fox ./neko/os/arch/user-setup
 popd
