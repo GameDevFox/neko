@@ -25,16 +25,18 @@ pacman --noconfirm -S git
 archPackages=$(cat ~fox/neko/os/arch/packages | grep -v "^#")
 pacman --noconfirm --needed -S ${archPackages}
 
+PATH=$PATH:~fox/neko/bin
+
 # neko setup
 pushd ~fox
   sudo -u fox git clone https://github.com/GameDevFox/neko.git
 
   for group in audio display-manager desktop media; do
-    pacman -S --noconfirm $(~fox/neko/bin/neko-packages $group)
+    pacman -S --noconfirm $(neko-packages $group)
   done
 
-  ~fox/neko/bin/install-yay
-  ~fox/neko/bin/install-wallpaper
+  sudo -u fox install-yay
+  sudi -u fox install-wallpaper
 
   sudo -u fox ./neko/os/arch/user-setup
 popd
