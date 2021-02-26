@@ -43,7 +43,7 @@ pushd ~fox
   sudo -u fox ./neko/os/arch/user-setup
 popd
 
-pkgfile --update
+timedatectl set-ntp true
 
 # Disable root login (lock password)
 passwd root -l
