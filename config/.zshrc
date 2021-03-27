@@ -36,7 +36,7 @@ for wname in ${alt_widgets}; do
   eval "
   alt-${wname} () {
     OLD_WORDCHARS=\"\$WORDCHARS\"
-    WORDCHARS=\"\${WORDCHARS/\/}\"
+    WORDCHARS=\"\"
 
     # Do something
     zle ${wname}
