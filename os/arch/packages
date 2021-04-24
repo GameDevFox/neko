@@ -1,3 +1,4 @@
+asp
 bc
 bind
 ccache
@@ -18,6 +19,7 @@ man-pages
 net-tools
 ntfs-3g
 openssh
+p7zip
 pkgfile
 polkit
 qemu
