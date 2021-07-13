@@ -251,6 +251,7 @@ bar {
 
 for_window [class="^Keepassx2$"] floating enable
 for_window [title="QEMU"] floating enable
+for_window [title="^Calculator$"] floating enable
 
 # set $left LeftDisplay
 # set $center CenterDisplay
