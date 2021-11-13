@@ -1,0 +1,98 @@
+PORTAGE_MAKE_CONF=/mnt/gentoo/etc/portage/make.conf
+
+### Preparing the disks ###
+
+## Partition disk
+# fdisk /dev/sda
+
+## Format partition
+# mkfs.ext4 /dev/sda1
+
+## Mount disk
+# mount /dev/sda1 /mnt/gentoo
+
+### Installing stage3 ###
+
+## Download stage3 tarball
+cd /mnt/gentoo
+links https://www.gentoo.com/downloads/
+
+## Extract tarball
+
+## Confirgure compile options
+cd
+## Add MAKEOPTS="-j2"
+vi /mnt/gentoo/etc/portage/make.conf
+
+### Installing base system ###
+
+## Select mirrors
+cat ${PORTAGE_MAKE_CONF} | grep -n GENTOO_MIRRORS > ${PORTAGE_MAKE_CONF}
+mirrorselect -i -o >> ${PORTAGE_MAKE_CONF}
+
+## Gentoo ebuild repository
+mkdir --parents /mnt/gentoo/etc/portage/repos.conf
+cp /mnt/gentoo/usr/share/portage/config/repos.conf /mnt/gentoo/etc/portage/repos.conf/gentoo.conf
+cp --defererence /etc/resolv.conf /mnt/gentoo/etc/
+
+## Mount parent filesystems
+mount --types proc /proc /mnt/gentoo/proc
+
+mount --rbind /sys /mnt/gentoo/sys
+mount --make-rslave /mnt/gentoo/sys
+
+mount --rbind /dev /mnt/gentoo/dev
+mount --make-rslave /mnt/gentoo/dev
+
+mount --bind /run /mnt/gentoo/run
+mount --make-slave /mnt/gentoo/run
+
+## Entering the new environment
+chroot /mnt/gentoo /bin/bash
+source /etc/profile
+export PS1="(chroot) ${PS1}"
+
+## Configuring Portage
+emerge-webrsync
+emerge --sync
+
+## Choose the right profile
+#eselect profile list
+
+## Updating the @world set
+emerge --ask --verbose --update --deep --newuse @world
+
+## Set USE variable
+nano /etc/portage/make.conf
+
+## Set timezone
+ls /usr/share/zoneinfo
+echo "America/Chicago" > /etc/timezone
+emerge --config sys-libs/timezone-data
+
+## Configure locales
+nano /etc/locale.gen # en_US.UTF-8 UTF-8
+locale-gen
+# eselect locale set ?
+env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
+
+### Configuring the kernel ###
+
+## Install firmware and/or microcode
+emerge --ask sys-kernel/linux-firmware
+
+## Install kernel source code
+emerge --ask sys-kernel/gentoo-sources
+eselect kernel list
+#eselect kernel set ?
+
+## Configure kernel
+cd /usr/src/linux
+make menuconfig
+
+## Build kernel
+make && make modules_install
+make install
+
+### Configuring the system ###
+
