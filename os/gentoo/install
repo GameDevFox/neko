@@ -96,3 +96,31 @@ make install
 
 ### Configuring the system ###
 
+## Create /etc/fstab
+blkid
+nano /etc/fstab
+
+## Configuring the network
+nano /etc/conf.d/hostname
+
+## Set root password
+passwd
+
+### Installing tools ###
+emerge --ask net-misc/dhcpcd
+
+## Install grub
+emerge --ask sys-boot/grub:2
+#grub-install /dev/sda
+#grub-install --target=x86_64-efi --efi-directory=/boot
+
+## Configure grub
+grub-mkconfig -o /boot/grub/grub.cfg
+
+### Finalizing ###
+
+## Create user
+useradd --create-home --groups users,wheel,audio --shell /bin/bash fox
+
+## Remove tarball
+rm /stage3-*gtar.*
