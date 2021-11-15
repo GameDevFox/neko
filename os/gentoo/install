@@ -1,5 +1,12 @@
 # ---- BOOTSTRAP ---- #
-curl -L https://raw.github.com/GameDevFox/neko/master/os/gentoo/gentoo-chroot
+NEKO_URL="https://raw.github.com/GameDevFox/neko/master"
+
+curl -L ${NEKO_URL}/os/gentoo/gentoo-chroot > gentoo-chroot
+chmod +x gentoo-chroot
+
+curl -L ${NEKO_URL}/os/gentoo/gentoo-mounts > gentoo-mounts
+chmod +x gentoo-mounts
+
 exit
 # -- END BOOTSTRAP -- #
 
