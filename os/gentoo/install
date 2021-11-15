@@ -1,4 +1,9 @@
-PORTAGE_MAKE_CONF=/mnt/gentoo/etc/portage/make.conf
+# ---- BOOTSTRAP ---- #
+curl -L https://raw.github.com/GameDevFox/neko/master/os/gentoo/gentoo-chroot
+exit
+# -- END BOOTSTRAP -- #
+
+#links https://wiki.gentoo.org/wiki/Handbook:AMD64
 
 ### Preparing the disks ###
 
@@ -10,14 +15,16 @@ PORTAGE_MAKE_CONF=/mnt/gentoo/etc/portage/make.conf
 
 ## Mount disk
 # mount /dev/sda1 /mnt/gentoo
+# mount /dev/sda2 /mnt/gentoo/boot
 
 ### Installing stage3 ###
 
 ## Download stage3 tarball
 cd /mnt/gentoo
-links https://www.gentoo.com/downloads/
+links https://gentoo.org/downloads/
 
 ## Extract tarball
+tar --extract --preserve-permissions --verbose --file $1 --xattrs-include='*.*' --numeric-owner
 
 ## Confirgure compile options
 cd
@@ -27,8 +34,7 @@ vi /mnt/gentoo/etc/portage/make.conf
 ### Installing base system ###
 
 ## Select mirrors
-cat ${PORTAGE_MAKE_CONF} | grep -n GENTOO_MIRRORS > ${PORTAGE_MAKE_CONF}
-mirrorselect -i -o >> ${PORTAGE_MAKE_CONF}
+mirrorselect -i -o >> /mnt/gentoo/etc/portage/make.conf
 
 ## Gentoo ebuild repository
 mkdir --parents /mnt/gentoo/etc/portage/repos.conf
@@ -121,6 +127,7 @@ grub-mkconfig -o /boot/grub/grub.cfg
 
 ## Create user
 useradd --create-home --groups users,wheel,audio --shell /bin/bash fox
+passwd fox
 
 ## Remove tarball
 rm /stage3-*gtar.*

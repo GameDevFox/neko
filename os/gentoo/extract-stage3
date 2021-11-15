@@ -1,1 +1,0 @@
-tar --extract --preserve-permissions --verbose --file $1 --xattrs-include=\'*.*\' --numeric-owner
