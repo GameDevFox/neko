@@ -105,10 +105,11 @@ bindkey "^[^[[D" alt-backward-word # alt-left (tmux)
 
 bindkey "^[w" alt-backward-delete-word # alt-w
 
-prompt=$'
+PROMPT='
 %(?..%F{red}=> %?
-)%F{white}%B[%h]%b %F{cyan}%n%f at %F{green}%M%f in %F{yellow}%~%f
+)%F{white}%B[%h]%b %(#.%F{red}.%F{cyan})%n%f at %F{green}%M%f in %F{yellow}%~%f
 $ '
+
 
 # completion
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
