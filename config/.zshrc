@@ -8,10 +8,20 @@ source "$NEKO/shell/commonrc"
 
 # Options
 setopt \
-  append_history auto_menu auto_name_dirs brace_ccl cd_able_vars no_clobber \
-  no_correct extended_history no_flow_control hist_ignore_dups \
-  hist_ignore_space hist_no_functions no_hist_verify inc_append_history_time \
-  pushd_ignore_dups rc_quotes
+  append_history \
+  auto_menu \
+  brace_ccl \
+  no_clobber \
+  no_correct \
+  extended_history \
+  no_flow_control \
+  hist_ignore_dups \
+  hist_ignore_space \
+  hist_no_functions \
+  no_hist_verify \
+  inc_append_history_time \
+  pushd_ignore_dups \
+  rc_quotes
 
 # Environment variables / settings
 export HISTFILE="$HOME/.history"
@@ -92,10 +102,7 @@ bindkey "^[r" reload-config
 bindkey "^[[3~" delete-char # del key
 
 bindkey "^[[1;5C" forward-word # ctrl-right
-bindkey "^[OC" forward-word # ctrl-right (tmux)
-
 bindkey "^[[1;5D" backward-word # ctrl-left
-bindkey "^[OD" backward-word # ctrl-left (tmux)
 
 bindkey "^[[1;3C" alt-forward-word # alt-right
 bindkey "^[^[[C" alt-forward-word # alt-right (tmux)
