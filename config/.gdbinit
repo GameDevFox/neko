@@ -1,7 +1,8 @@
+set prompt \n\033[1;32m(gdb)\033[0m 
+
 add-auto-load-safe-path /home/fox/projects
 
-tui new-layout mine regs 1 asm 1 status 0 cmd 1
-tui new-layout yours {-horizontal regs 1 asm 1 } 2 status 0 cmd 1
+tui new-layout main {-horizontal {src 1 asm 1} 1 cmd 1} 1 status 0
 
 define ui
   layout mine
