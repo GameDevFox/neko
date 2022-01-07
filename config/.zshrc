@@ -73,17 +73,6 @@ neko-pushd () {
 }
 zle -N neko-pushd
 
-neko-popd () {
-  dir_count=$(dirs -p | wc -l)
-  if [ "$dir_count" = "1" ]; then
-    zle -M "neko: directory stack empty"
-  else
-    popd > /dev/null
-    zle reset-prompt
-  fi
-}
-zle -N neko-popd
-
 reload-config () {
   source ~/.zshrc > /dev/null
   zle -M "Config reloaded"
@@ -95,7 +84,6 @@ bindkey -e # emacs
 bindkey "^[[A" up-line-or-search
 bindkey "^[[B" down-line-or-search
 bindkey "^N" neko-pushd
-bindkey "^P" neko-popd
 bindkey "^[k" kitsune-pushd
 bindkey "^[r" reload-config
 
