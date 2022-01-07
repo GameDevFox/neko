@@ -3,14 +3,11 @@ set prompt \n\033[1;32m(gdb)\033[0m
 add-auto-load-safe-path /home/fox/projects
 
 tui new-layout main {-horizontal {src 1 asm 1} 1 cmd 1} 1 status 0
+tui new-layout main-plus {-horizontal {src 1 asm 1} 1 { regs 1 cmd 2 } 1 } 1 status 0
 
 define ui
   layout mine
   focus cmd
-end
-
-define cpsr
-  print/t ($cpsr & 0xff000000) >> (24 + 3)
 end
 
 define ir
@@ -19,7 +16,6 @@ end
 
 define qemu-connect
   target remote localhost:1234
-  set scheduler-locking on
 end
 
 define pc
@@ -31,5 +27,9 @@ define pc
 
   eval "x/%di $pc", $count
 end
+
+python import os
+python sys.path.insert(0, os.environ['HOME'] + "/.config/gdb/python")
+python import neko
 
 # set disassemble-next-line on
