@@ -1,0 +1,7 @@
+## Select mirrors
+mirrorselect -i -o >> /mnt/gentoo/etc/portage/make.conf
+
+## Gentoo ebuild repository
+mkdir --parents /mnt/gentoo/etc/portage/repos.conf
+cp /mnt/gentoo/usr/share/portage/config/repos.conf /mnt/gentoo/etc/portage/repos.conf/gentoo.conf
+cp --defererence /etc/resolv.conf /mnt/gentoo/etc/

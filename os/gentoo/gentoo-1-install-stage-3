@@ -1,0 +1,6 @@
+## Download stage3 tarball
+cd /mnt/gentoo
+links https://gentoo.org/downloads/
+
+## Extract tarball
+tar --extract --preserve-permissions --verbose --file *.tar --xattrs-include='*.*' --numeric-owner

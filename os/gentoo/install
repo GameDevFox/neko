@@ -1,11 +1,11 @@
 # ---- BOOTSTRAP ---- #
 NEKO_URL="https://raw.github.com/GameDevFox/neko/master"
 
-curl -L ${NEKO_URL}/os/gentoo/gentoo-chroot > gentoo-chroot
-chmod +x gentoo-chroot
-
-curl -L ${NEKO_URL}/os/gentoo/gentoo-mounts > gentoo-mounts
-chmod +x gentoo-mounts
+for step in 1-install-stage-3 2-select-mirrors 3-mounts 4-chroot; do
+  script="gentoo-${step}"
+  curl -L "${NEKO_URL}/os/gentoo/${script}" > "${script}"
+  chmod +x "${script}"
+done
 
 exit
 # -- END BOOTSTRAP -- #
@@ -22,16 +22,17 @@ exit
 
 ## Mount disk
 # mount /dev/sda1 /mnt/gentoo
+# mkdir /mnt/gentoo/boot
 # mount /dev/sda2 /mnt/gentoo/boot
 
 ### Installing stage3 ###
 
-## Download stage3 tarball
+## Download stage3 tarball (or use gentoo-1-install-state-3)
 cd /mnt/gentoo
 links https://gentoo.org/downloads/
 
 ## Extract tarball
-tar --extract --preserve-permissions --verbose --file $1 --xattrs-include='*.*' --numeric-owner
+tar --extract --preserve-permissions --verbose --file *.tar --xattrs-include='*.*' --numeric-owner
 
 ## Confirgure compile options
 cd
@@ -40,7 +41,7 @@ vi /mnt/gentoo/etc/portage/make.conf
 
 ### Installing base system ###
 
-## Select mirrors
+## Select mirrors (or use gentoo-2-select-mirrors)
 mirrorselect -i -o >> /mnt/gentoo/etc/portage/make.conf
 
 ## Gentoo ebuild repository
@@ -48,7 +49,7 @@ mkdir --parents /mnt/gentoo/etc/portage/repos.conf
 cp /mnt/gentoo/usr/share/portage/config/repos.conf /mnt/gentoo/etc/portage/repos.conf/gentoo.conf
 cp --defererence /etc/resolv.conf /mnt/gentoo/etc/
 
-## Mount parent filesystems
+## Mount parent filesystems (or use gentoo-3-mounts)
 mount --types proc /proc /mnt/gentoo/proc
 
 mount --rbind /sys /mnt/gentoo/sys
@@ -60,7 +61,7 @@ mount --make-rslave /mnt/gentoo/dev
 mount --bind /run /mnt/gentoo/run
 mount --make-slave /mnt/gentoo/run
 
-## Entering the new environment
+## Entering the new environment (or use gentoo-4-chroot)
 chroot /mnt/gentoo /bin/bash
 source /etc/profile
 export PS1="(chroot) ${PS1}"
