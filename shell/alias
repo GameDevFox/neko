@@ -93,8 +93,5 @@ alias he='hexedit'
 alias npv='mpv --geometry=600'
 alias xc='xclip -selection clipboard'
 
-# graveyard
-
-## mobile
-#alias mobile-mode='source ~/neko/os/mobile/mobile-mode'
-#alias mvim='vim -S ~/neko/os/mobile/vimrc-mobile'
+# gentoo
+alias emerge='emerge --ask'
