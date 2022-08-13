@@ -8,6 +8,7 @@ app-misc/tmux
 app-portage/gentoolkit # for equery
 app-shells/zsh
 dev-vcs/git
+gnome-extra/gnome-calculator
 gui-libs/display-manager-init
 gui-wm/sway
 media-fonts/dejavu

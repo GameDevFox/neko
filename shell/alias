@@ -95,3 +95,4 @@ alias xc='xclip -selection clipboard'
 
 # gentoo
 alias emerge='emerge --ask'
+alias emerge-upgrade='emerge --verbose --update --deep --changed-use @world'
