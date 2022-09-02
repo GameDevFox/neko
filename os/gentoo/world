@@ -7,15 +7,20 @@ app-eselect/eselect-repository
 app-misc/tmux
 app-portage/gentoolkit # for equery
 app-shells/zsh
+dev-util/vulkan-tools
 dev-vcs/git
+games-util/lutris
+games-util/steam-launcher
 gnome-extra/gnome-calculator
 gui-libs/display-manager-init
 gui-wm/sway
 media-fonts/dejavu
 media-fonts/droid
+media-libs/vulkan-loader
 media-sound/pavucontrol-qt
 media-sound/pulseaudio
 net-analyzer/netcat
+net-im/discord-bin
 net-misc/dhcpcd
 net-misc/networkmanager
 net-misc/ntp
@@ -38,4 +43,5 @@ x11-misc/rofi
 x11-misc/slock
 x11-terms/st
 x11-terms/xfce4-terminal
+x11-wm/dwm
 x11-wm/i3
