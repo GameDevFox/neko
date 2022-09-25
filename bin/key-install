@@ -1,0 +1,7 @@
+#!/bin/bash
+
+KEY_FILE='/tmp/id_rsa'
+
+keepassxc-cli show ~/Passwords.kdbx "RSA Keys/GameDevFox@gmail.com RSA Private Key" | tail -n+5 | sed 's/Notes: //' > "${KEY_FILE}"
+
+chmod 600 "${KEY_FILE}"
