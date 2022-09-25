@@ -226,7 +226,7 @@ bindsym $mod+Shift+s sticky toggle
 
 bindsym $mod+Shift+h exec code ~
 bindsym $mod+Shift+n exec code ~/neko
-bindsym $mod+Shift+c exec code ~/.config/i3/config
+bindsym $mod+Shift+c exec code --new-window ~/.config/i3/config
 
 bindsym $mod+l exec lock-screen
 
