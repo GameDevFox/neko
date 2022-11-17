@@ -242,7 +242,9 @@ bindsym $mod+y exec ytdl
 
 bindsym $mod+Shift+g exec firefox --new-window "https://www.google.com/search?q=$(echo -n | rofi -dmenu)"
 bindsym $mod+Shift+j exec firefox --new-window "https://jisho.org/search/$(echo -n | rofi -dmenu)"
-bindsym $mod+Shift+p exec xfce4-terminal --default-working-directory="$HOME/projects/$((ls $HOME/projects && cat $HOME/.neko/projects) | rofi -dmenu)"
+bindsym $mod+Shift+p exec xfce4-terminal --default-working-directory="${HOME}/projects/$((ls ${HOME}/projects && cat ${HOME}/.neko/projects) | rofi -dmenu)"
+bindsym $mod+Shift+w exec nitrogen --restore
+bindsym $mod+Shift+x exec "${HOME}/.screenlayout/$(ls ${HOME}/.screenlayout | rofi -dmenu)"
 bindsym $mod+Shift+y exec firefox --new-window "https://www.youtube.com/results?search_query=$(echo -n | rofi -dmenu)"
 
 # Screen Brightness Control

@@ -1,4 +1,5 @@
-set prompt \n\033[1;32m(gdb)\033[0m 
+set history save on
+set prompt \n\033[1;32m(gdb)\033[0m
 
 add-auto-load-safe-path /home/fox/projects
 
