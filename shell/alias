@@ -92,6 +92,7 @@ alias dm='docker-machine'
 alias he='hexedit'
 alias npv='mpv --geometry=600'
 alias xc='xclip -selection clipboard'
+alias rsync-neko='rsync --times --info=progress2 --recursive --verbose'
 
 # gentoo
 alias emerge='emerge --ask'
