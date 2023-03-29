@@ -1,4 +1,5 @@
 set history save on
+set print pretty on
 set prompt \n\033[1;32m(gdb)\033[0m
 
 add-auto-load-safe-path /home/fox/projects
@@ -7,8 +8,8 @@ tui new-layout main {-horizontal {src 1 asm 1} 1 cmd 1} 1 status 0
 tui new-layout main-plus {-horizontal {src 1 asm 1} 1 { regs 1 cmd 2 } 1 } 1 status 0
 
 define ui
-  layout mine
-  focus cmd
+  layout main-plus
+  #focus cmd
 end
 
 define ir
