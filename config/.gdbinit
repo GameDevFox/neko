@@ -1,4 +1,5 @@
 set history save on
+set history remove-duplicates 1
 set print pretty on
 set prompt \n\033[1;32m(gdb)\033[0m
 
