@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ls -1 ${HOME}/projects
+cat ${HOME}/.neko/projects

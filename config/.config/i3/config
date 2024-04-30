@@ -52,10 +52,10 @@ bindsym $mod+Return exec i3-sensible-terminal
 bindsym $mod+Shift+q kill
 
 # start dmenu (a program launcher)
-bindsym $mod+d exec --no-startup-id dmenu_run
+# bindsym $mod+d exec --no-startup-id dmenu_run
 # A more modern dmenu replacement is rofi:
-# bindsym $mod+d exec "rofi -modi drun,run -show drun -sidebar-mode"
-# bindsym $mod+Shift+d exec "rofi -show run -sidebar-mode"
+bindsym $mod+d exec "rofi -modi drun,run -show drun -sidebar-mode"
+bindsym $mod+Shift+d exec "rofi -show run -sidebar-mode"
 # There also is i3-dmenu-desktop which only displays applications shipping a
 # .desktop file. It is a wrapper around dmenu, so you need that installed.
 # bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
@@ -228,7 +228,8 @@ bindsym $mod+Shift+h exec code ~
 bindsym $mod+Shift+n exec code ~/neko
 bindsym $mod+Shift+c exec code --new-window ~/.config/i3/config
 
-bindsym $mod+l exec lock-screen
+bindsym $mod+l exec ~/neko/bin/lock-screen
+# bindsym $mod+Shift+l exec slock
 
 bindsym $mod+Shift+f exec firefox
 bindsym $mod+Shift+k exec keepassxc
@@ -243,9 +244,9 @@ bindsym $mod+y exec ytdl
 bindsym $mod+Shift+g exec firefox --new-window "https://www.google.com/search?q=$(echo -n | rofi -dmenu)"
 bindsym $mod+Shift+j exec firefox --new-window "https://jisho.org/search/$(echo -n | rofi -dmenu)"
 bindsym $mod+Shift+l exec firefox --new-window "https://www.churchofjesuschrist.org/search?facet=scriptures&query=$(echo -n | rofi -dmenu)"
-bindsym $mod+Shift+p exec xfce4-terminal --default-working-directory="${HOME}/projects/$((ls ${HOME}/projects && cat ${HOME}/.neko/projects) | rofi -dmenu)"
+bindsym $mod+Shift+p exec ~/neko/bin/project-open
 bindsym $mod+Shift+w exec nitrogen --restore
-bindsym $mod+Shift+x exec "${HOME}/.screenlayout/$(ls ${HOME}/.screenlayout | rofi -dmenu)"
+bindsym $mod+Shift+x exec "~/.screenlayout/$(ls ~/.screenlayout | rofi -dmenu)"
 bindsym $mod+Shift+y exec firefox --new-window "https://www.youtube.com/results?search_query=$(echo -n | rofi -dmenu)"
 
 # Screen Brightness Control
