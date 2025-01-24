@@ -21,8 +21,16 @@
 		"description": "Log output to console"
 	},
 
+	"Print to console (alias)": {
+		"prefix": "log-",
+		"body": [
+			"console.log($1);$0",
+		],
+		"description": "Log output to console"
+	},
+
 	"Print string to console": {
-		"prefix": "log.",
+		"prefix": "log\"",
 		"body": [
 			"console.log(\"$1\");$0",
 		],
@@ -30,7 +38,7 @@
 	},
 
 	"Print string template to console": {
-		"prefix": "log`",
+		"prefix": "log$",
 		"body": [
 			"console.log(`$1`);$0",
 		],
