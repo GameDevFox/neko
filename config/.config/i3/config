@@ -269,7 +269,7 @@ bindsym $mod+XF86AudioLowerVolume exec light -U 5
 # finds out, if available)
 bar {
         status_command i3status
-        # tray_output $center
+        tray_output primary
 }
 
 for_window [class="^Keepassx2$"] floating enable

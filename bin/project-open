@@ -2,5 +2,5 @@ DIR=$((ls ${HOME}/projects && cat ${HOME}/.neko/projects) | rofi -dmenu)
 if [ "$DIR" == "" ]; then
   exit 1
 else
-  xfce4-terminal --default-working-directory="${HOME}/projects/${DIR}"
+  code "${HOME}/projects/${DIR}"
 fi

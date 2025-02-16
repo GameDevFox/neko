@@ -2,7 +2,6 @@
   "diffEditor.ignoreTrimWhitespace": false,
   "diffEditor.renderSideBySide": true,
   "editor.renderWhitespace": "all",
-  "editor.suggest.insertMode": "replace",
   "editor.tabSize": 2,
   "explorer.confirmDragAndDrop": false,
   "files.autoSave": "onFocusChange",
@@ -10,5 +9,6 @@
   "files.trimTrailingWhitespace": true,
   "javascript.updateImportsOnFileMove.enabled": "always",
   "typescript.updateImportsOnFileMove.enabled": "always",
-  "javascript.preferences.quoteStyle": "single"
+  "javascript.preferences.quoteStyle": "double",
+  "typescript.preferences.quoteStyle": "double"
 }

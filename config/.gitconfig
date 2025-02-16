@@ -5,6 +5,8 @@
 	username = GameDevFox
 [include]
 	path = ./.neko/.gitconfig
+[init]
+	defaultBranch = master
 [push]
 	default = current
 [user]
