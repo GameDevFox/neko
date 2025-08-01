@@ -1,0 +1,30 @@
+#!/bin/bash
+
+NAME=$1
+
+if [ -z "$NAME" ]; then
+  echo "usage: $(basename $0) layout-name" > /dev/stderr
+  exit 1
+fi
+
+SCREEN_LAYOUT_FILE="$HOME/.screenlayout/${NAME}.sh"
+
+if [ ! -x "${SCREEN_LAYOUT_FILE}" ]; then
+  echo "Error: ${SCREEN_LAYOUT_FILE} is not found or is not executable"
+  exit 1
+fi
+
+# Run screenlayout File
+$SCREEN_LAYOUT_FILE
+
+# Update backgrounds
+FEH_FILE="$HOME/.fehbg"
+
+if [ -f "${FEH_FILE}" ]; then
+  if [ ! -x "${FEH_FILE}" ]; then
+    echo "Warning: ${FEH_FILE} is not executable"
+    exit 0
+  fi
+
+  $FEH_FILE
+fi

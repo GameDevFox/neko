@@ -1,0 +1,6 @@
+#!/bin/bash
+
+FOLDER="$1"
+FIRST_FILE=$(find "$FOLDER" -maxdepth 1 | head -n 2 | tail -n 1)
+
+exiv2 -g Date "$FIRST_FILE"
