@@ -1,0 +1,6 @@
+#!/bin/bash
+
+sudo mount UUID=b88962e5-1a5d-442e-b0a7-7472ba8b1d89 ~/.bitmonero
+monerod
+sudo umount ~/.bitmonero
+find ~/.bitmonero

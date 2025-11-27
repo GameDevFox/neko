@@ -1,0 +1,2 @@
+#!/bin/bash
+git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | awk '/^blob/ {print $3 "\t" $2 "\t" $4}'
