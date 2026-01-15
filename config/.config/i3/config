@@ -246,13 +246,22 @@ bindsym $mod+Print exec gnome-screenshot --window
 
 bindsym $mod+y exec ytdl
 
-bindsym $mod+Shift+g exec firefox --new-window "https://www.google.com/search?q=$(echo -n | rofi -dmenu)"
-bindsym $mod+Shift+j exec firefox --new-window "https://jisho.org/search/$(echo -n | rofi -dmenu)"
-bindsym $mod+Shift+l exec firefox --new-window "https://www.churchofjesuschrist.org/search?facet=scriptures&query=$(echo -n | rofi -dmenu)"
+bindsym $mod+Shift+c exec code --new-window ~/.config/i3/config
+bindsym $mod+Shift+e exec firefox "https://emojipedia.org/en/search?q=$(echo -n | rofi -dmenu)"
+bindsym $mod+Shift+f exec firefox
+bindsym $mod+Shift+g exec firefox "https://www.grok.com/?q=$(echo -n | rofi -dmenu)"
+bindsym $mod+Shift+h exec code ~
+bindsym $mod+Shift+j exec firefox "https://jisho.org/search/$(echo -n | rofi -dmenu)"
+bindsym $mod+Shift+k exec keepassxc
+bindsym $mod+Shift+l exec firefox "$(~/projects/lessons/scripts/scripture.js $(echo -n | rofi -dmenu))"
+bindsym $mod+Shift+m exec gnome-system-monitor
+bindsym $mod+Shift+n exec code ~/neko
 bindsym $mod+Shift+p exec ~/neko/bin/project-open
+bindsym $mod+Shift+s exec spectacle -b -n -r
+bindsym $mod+Shift+v exec rofi -modi "videos:modi-videos" -show videos
 bindsym $mod+Shift+w exec nitrogen --restore
 bindsym $mod+Shift+x exec "~/.screenlayout/$(ls ~/.screenlayout | rofi -dmenu)"
-bindsym $mod+Shift+y exec firefox --new-window "https://www.youtube.com/results?search_query=$(echo -n | rofi -dmenu)"
+bindsym $mod+Shift+y exec firefox "https://www.youtube.com/results?search_query=$(echo -n | rofi -dmenu)"
 
 # Screen Brightness Control
 bindsym XF86MonBrightnessUp exec light -A 5

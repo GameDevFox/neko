@@ -111,6 +111,8 @@ zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' menu select=1
 zstyle ':completion:*' rehash true
 
+fpath+=~/.zfunc
+
 autoload -Uz compinit
 compinit
 
