@@ -4,7 +4,7 @@
 	helper = cache
 	username = GameDevFox
 [include]
-	path = ./.neko/.gitconfig
+	path = ~/.neko/.gitconfig
 [init]
 	defaultBranch = master
 [push]

@@ -1,0 +1,152 @@
+#!/bin/bash
+# Show ahead/behind/dirty status for all projects, with an upfront fetch.
+
+SHOW_ALL=0
+DO_FETCH=1
+
+for arg in "$@"; do
+  case "$arg" in
+    --all) SHOW_ALL=1 ;;
+    --no-fetch) DO_FETCH=0 ;;
+    -h|--help)
+      echo "Usage: projects-status [--all] [--no-fetch]"
+      echo "  --all       Show projects that are fully clean and up to date"
+      echo "  --no-fetch  Skip fetching remotes (faster, but behind counts may be stale)"
+      exit 0
+      ;;
+  esac
+done
+
+R='\033[0;31m'
+Y='\033[1;33m'
+G='\033[0;32m'
+C='\033[0;36m'
+B='\033[1m'
+D='\033[2m'
+X='\033[0m'
+
+projects=$(projects-list | sort)
+
+# ── Fetch ──────────────────────────────────────────────────────────────────────
+
+if [ "$DO_FETCH" = "1" ]; then
+  echo "Fetching remotes..."
+
+  while IFS= read -r project; do
+    (
+      name=$(basename "$project")
+      if git -C "$project" fetch --all --prune -q 2>/dev/null; then
+        echo "  $name"
+      else
+        echo "  $name (fetch failed)"
+      fi
+    ) &
+  done <<< "$projects"
+
+  wait
+  echo ""
+fi
+
+# ── Status ─────────────────────────────────────────────────────────────────────
+
+any_dirty=0
+
+while IFS= read -r project; do
+  name=$(basename "$project")
+
+  # Detect default upstream ref (prefer origin, then first remote)
+  default_upstream=""
+  for ref in origin/master origin/main; do
+    if git -C "$project" rev-parse --verify "$ref" >/dev/null 2>&1; then
+      default_upstream="$ref"
+      break
+    fi
+  done
+  if [ -z "$default_upstream" ]; then
+    first_remote=$(git -C "$project" remote 2>/dev/null | head -1)
+    if [ -n "$first_remote" ]; then
+      for base in master main; do
+        if git -C "$project" rev-parse --verify "${first_remote}/${base}" >/dev/null 2>&1; then
+          default_upstream="${first_remote}/${base}"
+          break
+        fi
+      done
+    fi
+  fi
+
+  # Uncommitted working tree state
+  porcelain=$(git -C "$project" status --porcelain 2>/dev/null)
+  staged=$(echo "$porcelain" | grep -E '^[MADRCU]' | wc -l)
+  unstaged=$(echo "$porcelain" | grep -E '^.[MD]' | wc -l)
+  untracked=$(echo "$porcelain" | grep -E '^\?\?' | wc -l)
+  stash=$(git -C "$project" stash list 2>/dev/null | wc -l)
+
+  # Per-branch ahead/behind
+  branches=$(git -C "$project" branch --format='%(refname:short)' 2>/dev/null)
+
+  project_dirty=0
+  branch_lines=""
+
+  while IFS= read -r branch; do
+    [ -z "$branch" ] && continue
+
+    upstream=$(git -C "$project" rev-parse --abbrev-ref "${branch}@{upstream}" 2>/dev/null)
+    [ -z "$upstream" ] && upstream="$default_upstream"
+
+    if [ -z "$upstream" ]; then
+      branch_lines+="  ${C}${branch}${X}  ${D}(no remote)${X}\n"
+      project_dirty=1
+      continue
+    fi
+
+    counts=$(git -C "$project" rev-list --left-right --count "${upstream}...${branch}" 2>/dev/null)
+    behind=$(awk '{print $1}' <<< "$counts")
+    ahead=$(awk '{print $2}' <<< "$counts")
+
+    if [ -z "$behind" ] || [ -z "$ahead" ]; then
+      branch_lines+="  ${C}${branch}${X}  ${D}(ref error vs ${upstream})${X}\n"
+      continue
+    fi
+
+    if [ "$ahead" = "0" ] && [ "$behind" = "0" ]; then
+      [ "$SHOW_ALL" = "1" ] && branch_lines+="  ${C}${branch}${X}  ${G}✓${X}\n"
+    else
+      project_dirty=1
+      parts=""
+      [ "$ahead" != "0" ] && parts+="${Y}↑${ahead}${X}"
+      [ "$behind" != "0" ] && [ -n "$parts" ] && parts+=" "
+      [ "$behind" != "0" ] && parts+="${R}↓${behind}${X}"
+      branch_lines+="  ${C}${branch}${X}  ${parts}  ${D}(vs ${upstream})${X}\n"
+    fi
+  done <<< "$branches"
+
+  if [ "$staged" -gt 0 ] || [ "$unstaged" -gt 0 ] || [ "$untracked" -gt 0 ] || [ "$stash" -gt 0 ]; then
+    project_dirty=1
+  fi
+
+  if [ "$project_dirty" = "1" ] || [ "$SHOW_ALL" = "1" ]; then
+    any_dirty=1
+    echo -e "${B}${name}${X}"
+
+    if [ -n "$branch_lines" ]; then
+      printf "%b" "$branch_lines"
+    elif [ -z "$branches" ]; then
+      echo -e "  ${D}(no commits)${X}"
+    fi
+
+    dirty_parts=""
+    [ "$staged" -gt 0 ]    && dirty_parts+="${staged} staged"
+    [ "$unstaged" -gt 0 ]  && dirty_parts+="${dirty_parts:+, }${unstaged} unstaged"
+    [ "$untracked" -gt 0 ] && dirty_parts+="${dirty_parts:+, }${untracked} untracked"
+    [ "$stash" -gt 0 ]     && dirty_parts+="${dirty_parts:+, }${stash} stashed"
+    [ -n "$dirty_parts" ]  && echo -e "  ${D}${dirty_parts}${X}"
+
+    echo ""
+  fi
+done <<< "$projects"
+
+if [ "$any_dirty" = "0" ]; then
+  echo -e "${G}All projects are clean and up to date.${X}"
+fi
+
+exit 0

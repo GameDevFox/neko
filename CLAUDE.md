@@ -1,0 +1,245 @@
+# neko
+
+Personal dotfiles and utility scripts repository for Edward Nicholes Jr. (GameDevFox). Cloned to `~/neko` on every new Linux setup — the source of truth for shell config, window manager setup, editor preferences, and system utilities.
+
+## Purpose
+
+Bootstrap a new Linux system and keep config consistent across machines. After cloning, run `bin/link-neko` to symlink everything from `config/` into `$HOME/`, then the shell picks up `bin/` automatically via PATH.
+
+## Directory Layout
+
+```
+bin/       Utility scripts — added to PATH via .zshrc/.profile
+config/    Dotfiles — mirrors $HOME structure, symlinked by link-neko
+shell/     Shell config sourced by .zshrc: commonrc, alias, functions
+os/        OS-specific install scripts and package lists
+  arch/    Primary: install, setup, grub-setup scripts + package lists
+  debian/  Package lists
+  gentoo/  World file and setup notes
+  osx/     macOS extras
+  windows/ Windows setup
+common/    Dev config templates (eslint, VS Code)
+desktop/   Wallpaper assets
+misc/      VS Code snippets, reference docs (e.g. claude-agent-cost-report.md)
+TODO.md    Canonical to-do list (open + completed items)
+```
+
+## Bootstrap Flow
+
+1. Fresh Arch install: run `os/arch/install` from live ISO
+2. Chroot and run `os/arch/setup` (timezone, locale, create user `fox`, sudoers)
+3. After first boot as `fox`: clone repo to `~/neko`, run `bin/link-neko`
+4. Shell sources `.zshrc` → loads all config, adds `~/neko/bin` to PATH
+
+## Installation: link-neko
+
+`bin/link-neko` walks `config/` and creates symlinks at the corresponding path in `$HOME/`. It skips anything already linked. It does **not** overwrite existing files — run manually if replacing a non-symlink file.
+
+Files in `config/` map directly: `config/.zshrc` → `~/.zshrc`, `config/.config/i3/config` → `~/.config/i3/config`, etc.
+
+## Shell Config
+
+- **`.zshrc`** — Zsh options, history (1M entries), prompt, global aliases, key widgets
+- **`shell/commonrc`** — Shared between shells: PATH additions, env vars, sources alias + functions
+- **`shell/alias`** — All aliases including extensive git shortcuts (`g`, `ga`, `gb`, `gco`, `gd`, `gp`, etc.)
+- **`shell/functions`** — Shell functions: `md`, `bookmark`, `gurl`, `gclone`, `gnl`, docker helpers
+
+Key env vars set by shell config:
+- `NEKO=$HOME/neko`
+- `EDITOR=vim`
+- `PAGER=less` with `LESS='-SRX'`
+
+Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookmarks`, `vimrc`.
+
+## Bin Scripts
+
+45+ scripts. Key categories:
+
+**Git:** `git-current-branch`, `git-last-branch`, `git-outdated`, `git-usage`, `git-as-gamedevfox`, `git-as-prince86eknj`
+
+**Projects:** `projects-list`, `projects-outdated`, `projects-fetch`, `project-open` (rofi-based VS Code opener)
+
+**Display:** `screen-layout-set` (named xrandr presets), `install-wallpaper`, `monitor-ls`, `monitor-sleep-enable/disable`
+
+**System/Security:** `lock-screen`, `key-install` (KeePassXC SSH key extraction), `monero-update` (encrypted volume + daemon), `block-device-list`
+
+**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash)
+
+When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.
+
+## Config Files
+
+**i3** (`config/.config/i3/config`): Super as mod key, 20px inner gaps, 3-monitor workspace layout (DP-1 left, HDMI-2 center, DP-2 right), Rofi launcher, lock screen via `bin/lock-screen`.
+
+**i3status** (`config/.config/i3status/config`): The public config is `config.public` (tracked). `config.private` is gitignored — for machine-specific overrides. The symlinked `config` file should point to or include the appropriate variant.
+
+**Vim** (`.vimrc`): Syntax highlighting, smart indent, custom whitespace commands. Sources `~/neko/local/vimrc` for local overrides.
+
+**Tmux** (`.tmux.conf`): 256-color, 99K history, arrow-key pane navigation.
+
+**Git** (`.gitconfig`): `useConfigOnly = true`, default branch `master`, push default `current`, fetch prune enabled. Per-directory overrides via `.neko/.gitconfig`.
+
+## OS Package Lists
+
+Arch packages are split into `os/arch/packages` (base list) and `os/arch/packages.d/` (modular categories: audio, aur, bluetooth, desktop, display-manager, japanese, media, tablet, wifi, etc.).
+
+When adding a new package dependency: add it to the appropriate file in `packages.d/` or to `packages` if it's universal.
+
+## Git Remotes
+
+- `origin` → GitHub (GameDevFox)
+- `gitlab` → GitLab (GameDevFox)
+
+Push to both when making changes that should persist across systems. Pull with `neko-pull` alias (defined in shell/alias).
+
+## What NOT to Track
+
+- `~/.neko/` — machine-local overrides (bookmarks, local zshrc, local gitconfig)
+- Private/sensitive files (SSH private keys, credentials)
+- `config/.config/i3status/config.private` — machine-specific status bar config
+- Generated or cached files
+
+## Machine-Local Credentials
+
+Key machine-specific files in `~/.neko/` that must be recreated on each new machine:
+- `.gitconfig` — git email + GitHub credential helper
+- `git-credential-github` — script that reads `~/claude-github-pat.txt` and outputs GitHub credentials
+
+GitHub credentials:
+- PAT stored at `~/claude-github-pat.txt` (permissions: 600)
+- Credential helper at `~/.neko/git-credential-github` (executable)
+- Only applies to `https://github.com` URLs via `[credential "https://github.com"]` in `~/.neko/.gitconfig`
+
+Telegram bot credentials for Claude notifications:
+- Bot token: `~/claude-telegram-bot-token` (permissions: 600)
+- Chat ID: `~/claude-telegram-chat-id` (permissions: 600)
+
+To send a Telegram notification from a local session:
+```bash
+curl -s -X POST "https://api.telegram.org/bot$(cat ~/claude-telegram-bot-token)/sendMessage" \
+  -d "chat_id=$(cat ~/claude-telegram-chat-id)&text=YOUR+MESSAGE"
+```
+
+Note: remote/scheduled agents cannot read local files — embed the token and chat ID directly in the routine prompt if needed.
+
+## GitHub Token
+
+A fine-grained PAT for Claude's GitHub access was created on 2026-05-04. It **expires 2026-08-02** (Sunday). Renew it before that date at GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens.
+
+A scheduled routine (`trig_016sRX1riuSyJTEPH8KpWZG4`) is already set up to send a Telegram reminder on 2026-07-20 (2 weeks before expiry).
+
+Remind the user to renew this token if the current date is within 2 weeks of 2026-08-02.
+
+## Project Sessions
+
+Projects live under `~/projects/`. Each project can have a named tmux Claude CLI session.
+
+### Listing Sessions
+
+When the user says **"list"** or **"list sessions"**, run:
+
+```bash
+tmux list-sessions 2>/dev/null
+```
+
+Display the results as a numbered list, e.g.:
+
+```
+1. kitsune (running, 5 minutes)
+2. everempire-api (running, 23 minutes)
+3. workout-waifu (running, 1 hour)
+```
+
+Remember the number-to-session mapping for the rest of the conversation. After displaying the list, wait for the user to reference a number.
+
+### Interacting with a Session by Number
+
+When the user references a session by number, ask what they'd like to do with it. Options:
+
+- **Status** — show current pane output: `tmux capture-pane -t <name> -p -S -50`
+- **Kill** — `tmux kill-session -t <name>`
+- **Restart** — kill then start a new session (see Starting a Session below)
+- **Kill and restart** — same as restart
+
+If the user says a session is **stuck**, kill and restart it immediately without asking for confirmation.
+
+### Starting a Session
+
+Before starting, check if the session already exists:
+
+```bash
+tmux has-session -t <name> 2>/dev/null
+```
+
+To start a new session (always include `--remote-control`):
+
+```bash
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control'
+```
+
+With a permission mode (use when the user specifies one):
+
+```bash
+# Auto-approve file reads/writes, prompt for commands
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --permission-mode acceptEdits'
+
+# Auto mode
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --permission-mode auto'
+```
+
+If the user doesn't specify a permission mode, start without one (default behavior).
+
+## Cloning Projects
+
+The user's GitHub account is **GameDevFox** (`github.com/GameDevFox`). SSH is not configured on this machine — use HTTPS (the credential helper handles auth automatically):
+
+```bash
+git clone https://github.com/GameDevFox/<repo>.git ~/projects/<repo>
+```
+
+For repos owned by others or on other hosts, ask for the full URL if not provided, then clone:
+
+```bash
+git clone <url> ~/projects/<name>
+```
+
+After cloning, ask if they want to start a Claude session for it. If the directory already exists, warn the user before proceeding.
+
+## Branch Management
+
+When the user asks about branches for a project, operate from its directory (`~/projects/<name>`).
+
+- **List branches** (local + remote): `git branch -a`
+- **Current branch**: `git branch --show-current`
+- **Switch branch**: `git checkout <branch>` (or `git switch <branch>`)
+- **Create and switch**: `git checkout -b <branch>`
+- **Delete local branch**: `git branch -d <branch>` (use `-D` only if user confirms force-delete)
+- **Delete remote branch**: confirm with user before running `git push <remote> --delete <branch>`
+
+Always show the current branch when giving branch status.
+
+## Remote Sync
+
+When the user wants to sync or check remotes for a project:
+
+- **List remotes**: `git remote -v`
+- **Fetch all remotes**: `git fetch --all --prune`
+- **Show ahead/behind status**: `git status -sb` or `git branch -vv`
+- **Pull current branch**: `git pull`
+- **Pull with rebase**: `git pull --rebase`
+- **Push current branch**: confirm with user before pushing; use `git push -u origin <branch>` for new branches
+
+For **force push**, always ask for explicit confirmation and warn about overwriting remote history. Never force-push to `main` or `master` without a strong explicit reason from the user.
+
+To check all projects for unpushed changes at once:
+
+```bash
+for d in ~/projects/*/; do
+  [ -d "$d/.git" ] && echo "=== $d ===" && git -C "$d" status -sb 2>/dev/null
+done
+```
+
+## To-Do List
+
+Whenever the user asks to add something to a to-do list, add it to `~/neko/TODO.md` in addition to using the TaskCreate tool. Use standard markdown checkbox format: `- [ ] item`.
+
