@@ -25,7 +25,7 @@ B='\033[1m'
 D='\033[2m'
 X='\033[0m'
 
-projects=$(projects-list | sort)
+projects=$(echo "$HOME/neko"; projects-list | sort)
 
 # ── Fetch ──────────────────────────────────────────────────────────────────────
 

@@ -11,6 +11,8 @@ Bootstrap a new Linux system and keep config consistent across machines. After c
 ```
 bin/       Utility scripts — added to PATH via .zshrc/.profile
 config/    Dotfiles — mirrors $HOME structure, symlinked by link-neko
+              Symlinks in config/ are mirrored as symlinks at destination (not traversed)
+claude/    Claude Code config: skills/ directory (linked via config/.claude/skills)
 shell/     Shell config sourced by .zshrc: commonrc, alias, functions
 os/        OS-specific install scripts and package lists
   arch/    Primary: install, setup, grub-setup scripts + package lists
@@ -36,6 +38,10 @@ TODO.md    Canonical to-do list (open + completed items)
 `bin/link-neko` walks `config/` and creates symlinks at the corresponding path in `$HOME/`. It skips anything already linked. It does **not** overwrite existing files — run manually if replacing a non-symlink file.
 
 Files in `config/` map directly: `config/.zshrc` → `~/.zshrc`, `config/.config/i3/config` → `~/.config/i3/config`, etc.
+
+Symlinks found in `config/` are replicated as symlinks at the `$HOME` destination, pointing to the same resolved target (not traversed file-by-file).
+
+**Editing dotfiles:** Always edit the `config/` source, not the `$HOME` symlink. The Edit tool refuses to write through symlinks, so editing `~/.zshrc` or `~/.claude/CLAUDE.md` directly will fail — use the `config/` path instead (e.g. `config/.zshrc`, `config/.claude/CLAUDE.md`).
 
 ## Shell Config
 
@@ -161,7 +167,37 @@ When the user references a session by number, ask what they'd like to do with it
 - **Restart** — kill then start a new session (see Starting a Session below)
 - **Kill and restart** — same as restart
 
-If the user says a session is **stuck**, kill and restart it immediately without asking for confirmation.
+If the user says a session is **stuck**, follow this recovery escalation — stop as soon as one step works:
+
+**Step 1 — Interrupt and continue (try first):**
+```bash
+tmux send-keys -t <name> C-c
+```
+Wait 2–3 seconds, check if the session is responsive, then send the resume message (see below).
+
+**Step 2 — Graceful exit and resume (if Step 1 didn't fix it):**
+Send Ctrl+C twice to exit Claude Code, which emits the session UUID on exit:
+```bash
+tmux send-keys -t <name> C-c && sleep 1 && tmux send-keys -t <name> C-c
+```
+Wait for the session to close, then find the UUID:
+```bash
+ls -lt ~/.claude/projects/<project-dir-slug>/ | head -3
+```
+Restart with `--resume`:
+```bash
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --resume <uuid>'
+```
+Then send the resume message (see below).
+
+**Step 3 — Hard restart (last resort):**
+Kill and restart from scratch (original behavior — loses conversation history).
+
+### Resume Message
+
+After Steps 1 or 2, send this message to the session prompt:
+
+> The previous session got stuck (likely on a long-running command). This session has been resumed — you have full context of what was done. Please pick up where you left off. If a command was interrupted mid-run, re-run it. Do not start over or re-explain what was already completed.
 
 ### Starting a Session
 

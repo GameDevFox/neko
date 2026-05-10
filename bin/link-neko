@@ -1,6 +1,6 @@
 #!/bin/bash
-config="$HOME/.config"
-neko_config="${NEKO:-$HOME/neko}/config"
+NEKO="${NEKO:-$HOME/neko}"
+neko_config="$NEKO/config"
 
 cd "$neko_config"
 files=$()
@@ -13,10 +13,24 @@ find . -type f | sort | while read file; do
   dest_dir="$(realpath -m "$HOME/$base_dir")"
   dest="$(realpath -m "$dest_dir/$base_name")"
 
-  mkdir -p $dest_dir
+  mkdir -p "$dest_dir"
   if [ "$source" != "$dest" ]; then
-    mkdir -p "$dest_dir"
     ln -s "$source" "$dest_dir/$base_name"
+    [ "$?" = "0" ] && echo "Created link from $source to $dest"
+  fi
+done
+
+find . -type l | sort | while read file; do
+  base_dir="$(dirname "$file")"
+  base_name="$(basename "$file")"
+
+  source="$(readlink -f "$neko_config/$file")"
+  dest_dir="$(realpath -m "$HOME/$base_dir")"
+  dest="$dest_dir/$base_name"
+
+  mkdir -p "$dest_dir"
+  if [ ! -e "$dest" ] && [ ! -L "$dest" ]; then
+    ln -s "$source" "$dest"
     [ "$?" = "0" ] && echo "Created link from $source to $dest"
   fi
 done
