@@ -2,28 +2,16 @@
 
 ## Code Style
 
-**JavaScript / TypeScript:** Use arrow functions instead of `function` keyword declarations.
+**JavaScript / TypeScript:** Use arrow functions; avoid the `function` keyword.
+
+**Classes:** Avoid `class`, `constructor`, `extends`, `super`, `new` (for user-defined types), and `this`. Use factory functions instead:
 
 ```ts
-// preferred
-const greet = (name: string) => `Hello, ${name}`;
-
-// avoid
-function greet(name: string) { return `Hello, ${name}`; }
+export type Foo<T> = { ... };
+export const Foo = <T>(...args): Foo<T> => ({ ... });
 ```
 
-**Classes:** Avoid classes, `this`, and `extends`. Use factory functions instead.
-
-```ts
-// preferred
-export type Point = { x: number; y: number };
-export const Point = (x: number, y: number): Point => ({ x, y });
-
-// avoid
-class Point {
-  constructor(public x: number, public y: number) {}
-}
-```
+Share behavior by importing functions, not via inheritance. Always end TypeScript statements with semicolons.
 
 ## Testing
 
