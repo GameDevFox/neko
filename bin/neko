@@ -1,0 +1,113 @@
+#!/bin/bash
+
+detect_os() {
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "macos"
+    return
+  fi
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      arch)   echo "arch";   return ;;
+      gentoo) echo "gentoo"; return ;;
+    esac
+    case "$ID_LIKE" in
+      *arch*)   echo "arch";   return ;;
+      *gentoo*) echo "gentoo"; return ;;
+      *debian*) echo "debian"; return ;;
+    esac
+    case "$ID" in
+      debian|ubuntu|linuxmint) echo "debian"; return ;;
+    esac
+  fi
+  echo "unknown"
+}
+
+cmd_install() {
+  if [ "$#" -eq 0 ]; then
+    echo "Usage: neko install <package> [...]" >&2
+    exit 1
+  fi
+  case "$(detect_os)" in
+    arch)   exec sudo pacman -S "$@" ;;
+    gentoo) exec sudo emerge "$@" ;;
+    debian) exec sudo apt install "$@" ;;
+    macos)  exec brew install "$@" ;;
+    *) echo "neko install: unsupported OS" >&2; exit 1 ;;
+  esac
+}
+
+cmd_update() {
+  case "$(detect_os)" in
+    arch)   exec sudo pacman -Sy ;;
+    gentoo) exec sudo emaint sync -a ;;
+    debian) exec sudo apt update ;;
+    macos)  exec brew update ;;
+    *) echo "neko update: unsupported OS" >&2; exit 1 ;;
+  esac
+}
+
+cmd_upgrade() {
+  case "$(detect_os)" in
+    arch)   exec sudo pacman -Syu ;;
+    gentoo) sudo emaint sync -a && exec sudo emerge -uDN @world ;;
+    debian) sudo apt update && exec sudo apt upgrade ;;
+    macos)  brew update && exec brew upgrade ;;
+    *) echo "neko upgrade: unsupported OS" >&2; exit 1 ;;
+  esac
+}
+
+cmd_screen() {
+  local sub="${1:-}"
+  local arg="${2:-}"
+  case "$sub" in
+    timeout)
+      case "$arg" in
+        on)  exec monitor-sleep-enable ;;
+        off) exec monitor-sleep-disable ;;
+        *)
+          echo "Usage: neko screen timeout <on|off>" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    *)
+      echo "Usage: neko screen <subcommand>"
+      echo ""
+      echo "Subcommands:"
+      echo "  timeout on    Enable screen timeout and DPMS"
+      echo "  timeout off   Disable screen timeout and DPMS"
+      ;;
+  esac
+}
+
+cmd_help() {
+  echo "Usage: neko <command> [args]"
+  echo ""
+  echo "Commands:"
+  echo "  link                    Symlink config files to \$HOME (link-neko)"
+  echo "  status                  Show project git status (projects-status)"
+  echo "  install <pkg>           Install a package with the system package manager"
+  echo "  update                  Refresh the package index"
+  echo "  upgrade                 Refresh the package index and upgrade installed packages"
+  echo "  screen timeout <on|off> Enable or disable screen timeout and DPMS"
+  echo "  help                    Show this help message"
+}
+
+subcommand="${1:-help}"
+shift 2>/dev/null
+
+case "$subcommand" in
+  link)    exec link-neko "$@" ;;
+  status)  exec projects-status "$@" ;;
+  install) cmd_install "$@" ;;
+  update)  cmd_update ;;
+  upgrade) cmd_upgrade ;;
+  screen)  cmd_screen "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *)
+    echo "neko: unknown command '$subcommand'" >&2
+    echo "Run 'neko help' for usage." >&2
+    exit 1
+    ;;
+esac
