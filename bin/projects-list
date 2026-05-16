@@ -1,1 +1,53 @@
-find -L ~/projects -maxdepth 2 -name '.git' | sed 's!/\.git$!!'
+#!/bin/bash
+
+OWNER_PATTERNS=(
+  "github\.com[:/]GameDevFox"
+  "gitlab\.com[:/]GameDevFox"
+  "gitlab\.com[:/]everempire"
+  "gitlab\.com[:/]kitsune-system"
+)
+
+FILTER=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --mine) FILTER="mine" ;;
+    --not-mine) FILTER="not-mine" ;;
+    --missing-remote) FILTER="missing-remote" ;;
+    -h|--help)
+      echo "Usage: projects-list [--mine | --not-mine | --missing-remote]"
+      echo "  --mine            Only projects owned by me (remote URL matches owner patterns)"
+      echo "  --not-mine        Only third-party projects"
+      echo "  --missing-remote  Only projects with no remotes configured"
+      exit 0
+      ;;
+  esac
+done
+
+is_mine() {
+  local project="$1"
+  local urls
+  urls=$(git -C "$project" remote | xargs -I{} git -C "$project" remote get-url --all {} 2>/dev/null)
+  for pattern in "${OWNER_PATTERNS[@]}"; do
+    if echo "$urls" | grep -qE "$pattern"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+has_remote() {
+  git -C "$1" remote | grep -q .
+}
+
+while IFS= read -r project; do
+  if [ -z "$FILTER" ]; then
+    echo "$project"
+  elif [ "$FILTER" = "mine" ] && is_mine "$project"; then
+    echo "$project"
+  elif [ "$FILTER" = "not-mine" ] && has_remote "$project" && ! is_mine "$project"; then
+    echo "$project"
+  elif [ "$FILTER" = "missing-remote" ] && ! has_remote "$project"; then
+    echo "$project"
+  fi
+done < <(find -L ~/projects -maxdepth 2 -name '.git' | sed 's!/\.git$!!' | sort)

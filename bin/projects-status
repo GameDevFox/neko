@@ -3,15 +3,20 @@
 
 SHOW_ALL=0
 DO_FETCH=1
+PROJECTS_LIST_ARGS=()
 
 for arg in "$@"; do
   case "$arg" in
     --all) SHOW_ALL=1 ;;
     --no-fetch) DO_FETCH=0 ;;
+    --mine|--not-mine|--missing-remote) PROJECTS_LIST_ARGS+=("$arg") ;;
     -h|--help)
-      echo "Usage: projects-status [--all] [--no-fetch]"
-      echo "  --all       Show projects that are fully clean and up to date"
-      echo "  --no-fetch  Skip fetching remotes (faster, but behind counts may be stale)"
+      echo "Usage: projects-status [--all] [--no-fetch] [--mine | --not-mine | --missing-remote]"
+      echo "  --all             Show projects that are fully clean and up to date"
+      echo "  --no-fetch        Skip fetching remotes (faster, but behind counts may be stale)"
+      echo "  --mine            Only my projects"
+      echo "  --not-mine        Only third-party projects"
+      echo "  --missing-remote  Only projects with no remotes configured"
       exit 0
       ;;
   esac
@@ -25,7 +30,7 @@ B='\033[1m'
 D='\033[2m'
 X='\033[0m'
 
-projects=$(echo "$HOME/neko"; projects-list | sort)
+projects=$(echo "$HOME/neko"; projects-list "${PROJECTS_LIST_ARGS[@]}" | sort)
 
 # ── Fetch ──────────────────────────────────────────────────────────────────────
 
