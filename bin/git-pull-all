@@ -1,0 +1,48 @@
+#!/bin/bash
+# Fetch all remotes, then fast-forward every local tracking branch that's behind.
+# Skips the current branch if there are uncommitted changes.
+# Never rewrites history — diverged branches are reported but left alone.
+#
+# Usage: git-pull-all [<path>]
+#   <path>  Git repo directory (default: current directory)
+
+dir="${1:-.}"
+g() { git -C "$dir" "$@"; }
+
+g fetch --all --prune
+
+current=$(g branch --show-current)
+updated=()
+skipped=()
+diverged=()
+
+while IFS=' ' read -r branch upstream; do
+  [ -z "$upstream" ] && continue
+  g rev-parse --verify "$upstream" &>/dev/null || continue
+
+  local_sha=$(g rev-parse "$branch")
+  remote_sha=$(g rev-parse "$upstream")
+  [ "$local_sha" = "$remote_sha" ] && continue
+
+  if ! g merge-base --is-ancestor "$local_sha" "$remote_sha" 2>/dev/null; then
+    diverged+=("$branch")
+    continue
+  fi
+
+  if [ "$branch" = "$current" ]; then
+    if ! g diff --quiet || ! g diff --cached --quiet; then
+      skipped+=("$branch")
+      continue
+    fi
+    g merge --ff-only "$upstream" --no-edit &>/dev/null
+  else
+    g update-ref "refs/heads/$branch" "$remote_sha"
+  fi
+
+  updated+=("$branch")
+done < <(g branch --format='%(refname:short) %(upstream:short)')
+
+[ ${#updated[@]}  -gt 0 ] && echo "Updated:  ${updated[*]}"
+[ ${#skipped[@]}  -gt 0 ] && echo "Skipped (uncommitted changes): ${skipped[*]}"
+[ ${#diverged[@]} -gt 0 ] && echo "Diverged (manual merge needed): ${diverged[*]}"
+[ ${#updated[@]} -eq 0 ] && [ ${#skipped[@]} -eq 0 ] && [ ${#diverged[@]} -eq 0 ] && echo "Already up to date."

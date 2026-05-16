@@ -90,6 +90,7 @@ cmd_help() {
   echo "  install <pkg>           Install a package with the system package manager"
   echo "  update                  Refresh the package index"
   echo "  upgrade                 Refresh the package index and upgrade installed packages"
+  echo "  sync                    Fetch and fast-forward all projects (git-pull-all)"
   echo "  screen timeout <on|off> Enable or disable screen timeout and DPMS"
   echo "  help                    Show this help message"
 }
@@ -100,6 +101,15 @@ shift 2>/dev/null
 case "$subcommand" in
   link)    exec link-neko "$@" ;;
   status)  exec projects-status "$@" ;;
+  sync)
+    projects=$(echo "$HOME/neko"; projects-list | sort)
+    while IFS= read -r project; do
+      echo "=== $(basename "$project") ==="
+      git-pull-all "$project"
+      echo ""
+    done <<< "$projects"
+    ;;
+
   install) cmd_install "$@" ;;
   update)  cmd_update ;;
   upgrade) cmd_upgrade ;;

@@ -61,7 +61,7 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 45+ scripts. Key categories:
 
-**Git:** `git-current-branch`, `git-last-branch`, `git-outdated`, `git-usage`, `git-as-gamedevfox`, `git-as-prince86eknj`
+**Git:** `git-current-branch`, `git-last-branch`, `git-outdated`, `git-usage`, `git-pull-all`, `git-as-gamedevfox`, `git-as-prince86eknj`
 
 **Projects:** `projects-list`, `projects-outdated`, `projects-fetch`, `project-open` (rofi-based VS Code opener)
 

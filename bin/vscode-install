@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -e
+
+if [ -z "$1" ]; then
+  echo "Usage: vscode-install <tarball>"
+  exit 1
+fi
+
+TARBALL="$1"
+
+if [ ! -f "$TARBALL" ]; then
+  echo "File not found: $TARBALL"
+  exit 1
+fi
+
+sudo rm -rf /opt/vscode
+sudo tar -xzf "$TARBALL" -C /opt
+sudo mv /opt/VSCode-linux-x64 /opt/vscode
+
+echo "Done. /opt/vscode is now updated."

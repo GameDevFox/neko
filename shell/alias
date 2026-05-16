@@ -88,6 +88,9 @@ alias dps='docker ps -a'
 alias dc='docker-compose'
 alias dm='docker-machine'
 
+# vscode (proprietary, installed to /opt/vscode alongside pacman's OSS `code`)
+alias vscode='/opt/vscode/code'
+
 # misc
 alias he='hexedit'
 alias npv='mpv --geometry=600'
