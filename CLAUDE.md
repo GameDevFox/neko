@@ -69,7 +69,7 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 **System/Security:** `lock-screen`, `key-install` (KeePassXC SSH key extraction), `monero-update` (encrypted volume + daemon), `block-device-list`
 
-**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash)
+**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification)
 
 When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.
 
@@ -122,13 +122,11 @@ Telegram bot credentials for Claude notifications:
 - Bot token: `~/claude-telegram-bot-token` (permissions: 600)
 - Chat ID: `~/claude-telegram-chat-id` (permissions: 600)
 
-To send a Telegram notification from a local session:
-```bash
-curl -s -X POST "https://api.telegram.org/bot$(cat ~/claude-telegram-bot-token)/sendMessage" \
-  -d "chat_id=$(cat ~/claude-telegram-chat-id)&text=YOUR+MESSAGE"
-```
+Use `claude-notify "message"` to send a Telegram notification from any local session. For remote/scheduled agents, embed the token and chat ID directly in the routine prompt — they cannot read local files.
 
-Note: remote/scheduled agents cannot read local files — embed the token and chat ID directly in the routine prompt if needed.
+MCP servers (configured in `~/.claude.json`, recreate on each new machine):
+- `claude-notes` — Filesystem MCP: `npx -y @modelcontextprotocol/server-filesystem ~/claude-notes`
+- `personal-db` — SQLite MCP: `uvx mcp-server-sqlite --db-path ~/claude-db.sqlite`
 
 ## GitHub Token
 
@@ -228,6 +226,21 @@ tmux new-session -d -s <name> -n claude -c ~/projects/<name> 'claude --remote-co
 ```
 
 To browse and pick a session interactively, run `claude --resume` (no UUID) from a real terminal (e.g. a tmux window) — it opens a TUI picker listing all resumable sessions with summaries, timestamps, and sizes. This does not work from the agent's Bash tool (requires `--print` mode, which needs a UUID).
+
+With a permission mode (use when the user specifies one):
+
+```bash
+# Auto-approve file reads/writes, prompt for commands
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --permission-mode acceptEdits'
+
+# Auto mode
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --permission-mode auto'
+
+# Skip all permission checks (dangerously flag)
+tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --dangerously-skip-permissions'
+```
+
+If the user doesn't specify a permission mode, start without one (default behavior).
 
 ## Cloning Projects
 
