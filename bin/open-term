@@ -1,2 +1,2 @@
 #!/bin/bash
-gnome-terminal -- bash -c "trap \"exec zsh\" SIGINT; $*; exec zsh"
+gnome-terminal -- bash -c 'trap "exec zsh" SIGINT; "$@"; exec zsh' -- "$@"

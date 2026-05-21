@@ -1,7 +1,7 @@
 #!/bin/bash
-service=$@
+service=("$@")
 
-if [ "${service}" == "reload" ]; then
+if [ "${service[0]}" == "reload" ]; then
   if [ -f service.pid ]; then
     kill $(cat service.pid)
     echo "Reloading service."
@@ -19,8 +19,8 @@ function cleanup() {
 trap cleanup EXIT
 
 while true; do
-  echo -e "\nRunning \"${service}\" ..."
-  ${service} &
+  echo -e "\nRunning \"${service[*]}\" ..."
+  "${service[@]}" &
   pid=$(echo $!)
   echo $pid > service.pid
   echo -e "PID: ${pid}\n"

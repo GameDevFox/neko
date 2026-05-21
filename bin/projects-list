@@ -50,4 +50,4 @@ while IFS= read -r project; do
   elif [ "$FILTER" = "missing-remote" ] && ! has_remote "$project"; then
     echo "$project"
   fi
-done < <(find -L ~/projects -maxdepth 2 -name '.git' | sed 's!/\.git$!!' | sort)
+done < <(find -L ~/projects -mindepth 1 -maxdepth 1 -type d | sort)

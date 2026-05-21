@@ -73,6 +73,8 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.
 
+**Passthrough convention:** Scripts that wrap or route to another command must pass `"$@"` through — never re-parse or re-declare args. The destination owns its own argument handling.
+
 ## Config Files
 
 **i3** (`config/.config/i3/config`): Super as mod key, 20px inner gaps, 3-monitor workspace layout (DP-1 left, HDMI-2 center, DP-2 right), Rofi launcher, lock screen via `bin/lock-screen`.
@@ -180,13 +182,15 @@ Send Ctrl+C twice to exit Claude Code, which emits the session UUID on exit:
 ```bash
 tmux send-keys -t <name> C-c && sleep 1 && tmux send-keys -t <name> C-c
 ```
-Wait for the session to close, then find the UUID:
+Wait for the session to close, then find the UUID. From a real terminal (e.g. a tmux window), `claude --resume` (no args) opens an interactive TUI picker listing all sessions across all projects, each showing a summary of the last message, relative timestamp, branch, and conversation size. Navigate with arrow keys, search by typing, Space to preview, Ctrl+R to rename, Ctrl+A to show all projects, Ctrl+B to filter to current branch.
+
+**Note:** `claude --resume` without a UUID does NOT work from the agent's Bash tool — Claude Code runs in `--print` mode internally, which requires a UUID. From the agent side, find the UUID by listing session files directly:
 ```bash
 ls -lt ~/.claude/projects/<project-dir-slug>/ | head -3
 ```
-Restart with `--resume`:
+Restart with `--resume <uuid>`:
 ```bash
-tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --resume <uuid>'
+tmux new-session -d -s <name> -n <name> -c ~/projects/<name> 'claude --remote-control --resume <uuid>'
 ```
 Then send the resume message (see below).
 
@@ -201,29 +205,29 @@ After Steps 1 or 2, send this message to the session prompt:
 
 ### Starting a Session
 
-Before starting, check if the session already exists:
+Use `launch-claude-session` (or `neko claude`) to start a session. It always includes `--remote-control`, names the session after the project, and names the first window `claude`. `neko` runs from `~/neko`; all other names run from `~/projects/<name>`.
 
 ```bash
-tmux has-session -t <name> 2>/dev/null
+# Default: neko session
+neko claude
+
+# Any project under ~/projects/
+neko claude <name>
+
+# With a permission mode (all extra args pass through to launch-claude-session)
+neko claude <name> --permission-mode acceptEdits
+neko claude <name> --permission-mode auto
 ```
 
-To start a new session (always include `--remote-control`):
+To start manually (e.g. with `--resume`), always include `--remote-control` and name the first window `claude`:
 
 ```bash
-tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control'
+tmux has-session -t <name> 2>/dev/null  # check first
+tmux new-session -d -s <name> -n claude -c ~/projects/<name> 'claude --remote-control'
+tmux new-session -d -s <name> -n claude -c ~/projects/<name> 'claude --remote-control --resume <uuid>'
 ```
 
-With a permission mode (use when the user specifies one):
-
-```bash
-# Auto-approve file reads/writes, prompt for commands
-tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --permission-mode acceptEdits'
-
-# Auto mode
-tmux new-session -d -s <name> -c ~/projects/<name> 'claude --remote-control --permission-mode auto'
-```
-
-If the user doesn't specify a permission mode, start without one (default behavior).
+To browse and pick a session interactively, run `claude --resume` (no UUID) from a real terminal (e.g. a tmux window) — it opens a TUI picker listing all resumable sessions with summaries, timestamps, and sizes. This does not work from the agent's Bash tool (requires `--print` mode, which needs a UUID).
 
 ## Cloning Projects
 

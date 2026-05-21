@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Launch a named tmux session with claude --remote-control in the first window.
+# Usage: launch-claude-session [project-name] [--permission-mode <mode>]
+#   project-name defaults to "neko" (runs from ~/neko)
+#   For any other name, runs from ~/projects/<name>
+
+PROJECT="${1:-neko}"
+PERMISSION_MODE=""
+
+shift 2>/dev/null
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --permission-mode)
+      PERMISSION_MODE="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$PROJECT" = "neko" ]; then
+  DIR="$HOME/neko"
+else
+  DIR="$HOME/projects/$PROJECT"
+fi
+
+if [ ! -d "$DIR" ]; then
+  echo "Directory not found: $DIR" >&2
+  exit 1
+fi
+
+if tmux has-session -t "$PROJECT" 2>/dev/null; then
+  echo "Session '$PROJECT' already exists." >&2
+  exit 1
+fi
+
+CMD="claude --remote-control"
+if [ -n "$PERMISSION_MODE" ]; then
+  CMD="$CMD --permission-mode $PERMISSION_MODE"
+fi
+
+tmux new-session -d -s "$PROJECT" -n "claude" -c "$DIR" "$CMD"
+echo "Started session '$PROJECT' in $DIR"

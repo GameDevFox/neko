@@ -1,9 +1,5 @@
 # TODO
 
-- Create a genernal purpose `neko` command that proxies other commands like `neko link` -> `link-neko`, `neko status` -> `projects-status`, etc.
-  - Can also do stuff like installing packages and updating the system based on which os we're running on (ex. running "pacman" on arch and "emerge" on gentoo)
-    - neko install
-    - neko update/upgrade
 - [ ] Audit global web access permissions in ~/.claude/settings.json (WebSearch, WebFetch added 2026-05-04) — review monthly
 - [ ] Find a secure method for storing and restoring machine-local credentials between new machine setups — migrate GitHub PAT (`~/claude-github-pat.txt`) and Telegram bot token/chat ID (`~/claude-telegram-bot-token`, `~/claude-telegram-chat-id`) from plaintext `~/` files to encrypted-at-rest storage (e.g. system keychain via secret-tool)
 - [ ] Add branch protection to ark repo (master branch: prevent force pushes + deletions) — once commits are pushed

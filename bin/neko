@@ -92,6 +92,7 @@ cmd_help() {
   echo "  upgrade                 Refresh the package index and upgrade installed packages"
   echo "  sync                    Fetch and fast-forward all projects (git-pull-all)"
   echo "  screen timeout <on|off> Enable or disable screen timeout and DPMS"
+  echo "  claude [args]           Launch a claude tmux session (launch-claude-session)"
   echo "  help                    Show this help message"
 }
 
@@ -114,6 +115,7 @@ case "$subcommand" in
   update)  cmd_update ;;
   upgrade) cmd_upgrade ;;
   screen)  cmd_screen "$@" ;;
+  claude)  exec launch-claude-session "$@" ;;
   help|-h|--help) cmd_help ;;
   *)
     echo "neko: unknown command '$subcommand'" >&2

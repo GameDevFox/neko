@@ -40,7 +40,9 @@ if [ "$DO_FETCH" = "1" ]; then
   while IFS= read -r project; do
     (
       name=$(basename "$project")
-      if git-pull-all "$project" &>/dev/null; then
+      if [ ! -d "$project/.git" ]; then
+        :
+      elif git-pull-all "$project" &>/dev/null; then
         echo "  $name"
       else
         echo "  $name (fetch failed)"
@@ -58,6 +60,11 @@ any_dirty=0
 
 while IFS= read -r project; do
   name=$(basename "$project")
+
+  if [ ! -d "$project/.git" ]; then
+    [ "$SHOW_ALL" = "1" ] && echo -e "${B}${name}${X}\n  ${D}(not a git repo)${X}\n"
+    continue
+  fi
 
   # Detect default upstream ref (prefer origin, then first remote)
   default_upstream=""
