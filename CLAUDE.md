@@ -212,9 +212,11 @@ neko claude
 # Any project under ~/projects/
 neko claude <name>
 
-# With a permission mode (all extra args pass through to launch-claude-session)
+# Any extra args are forwarded verbatim to claude (quoting preserved)
 neko claude <name> --permission-mode acceptEdits
 neko claude <name> --permission-mode auto
+neko claude <name> --dangerously-skip-permissions
+neko claude <name> --resume <uuid>
 ```
 
 To start manually (e.g. with `--resume`), always include `--remote-control` and name the first window `claude`:
