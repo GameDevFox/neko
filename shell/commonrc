@@ -1,6 +1,9 @@
 # Include user "bin" dir
 PATH="$HOME/bin:$PATH"
 
+# Include ".neko" (local) bin dir
+PATH="$HOME/.neko/bin:$PATH"
+
 # Include local binaries
 PATH="$PATH:./bin"
 

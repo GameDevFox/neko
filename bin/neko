@@ -92,7 +92,7 @@ cmd_help() {
   echo "  upgrade                 Refresh the package index and upgrade installed packages"
   echo "  sync                    Fetch and fast-forward all projects (git-pull-all)"
   echo "  screen timeout <on|off> Enable or disable screen timeout and DPMS"
-  echo "  claude [args]           Launch a claude tmux session (launch-claude-session)"
+  echo "  claude [args]           Launch or attach to a claude tmux session (launch-claude-session)"
   echo "  help                    Show this help message"
 }
 
