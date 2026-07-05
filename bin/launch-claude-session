@@ -1,11 +1,14 @@
 #!/bin/bash
 
-# Launch a named tmux session with claude --remote-control in the first window.
+# Launch (or attach to) a named tmux session with claude --remote-control in
+# the first window. Always attaches to the session afterward, whether it was
+# just created or already existed.
 # Usage: launch-claude-session [project-name] [extra claude args...]
 #   project-name defaults to "neko" (runs from ~/neko)
 #   For any other name, runs from ~/projects/<name>
 #   Any extra args are forwarded as-is to claude (e.g. --permission-mode auto,
-#   --dangerously-skip-permissions, --resume <uuid>).
+#   --dangerously-skip-permissions, --resume <uuid>). Ignored if the session
+#   already exists.
 
 PROJECT="${1:-neko}"
 
@@ -23,16 +26,21 @@ if [ ! -d "$DIR" ]; then
 fi
 
 if tmux has-session -t "$PROJECT" 2>/dev/null; then
-  echo "Session '$PROJECT' already exists." >&2
-  exit 1
+  echo "Attaching to existing session '$PROJECT'"
+else
+  # tmux new-session takes a single command string, so quote each forwarded
+  # arg with %q to preserve spacing/special chars before joining.
+  CMD="claude --remote-control"
+  if [ $# -gt 0 ]; then
+    CMD="$CMD $(printf '%q ' "$@")"
+  fi
+
+  tmux new-session -d -s "$PROJECT" -n "claude" -c "$DIR" "$CMD"
+  echo "Started session '$PROJECT' in $DIR"
 fi
 
-# tmux new-session takes a single command string, so quote each forwarded
-# arg with %q to preserve spacing/special chars before joining.
-CMD="claude --remote-control"
-if [ $# -gt 0 ]; then
-  CMD="$CMD $(printf '%q ' "$@")"
+if [ -n "$TMUX" ]; then
+  exec tmux switch-client -t "$PROJECT"
+else
+  exec tmux attach-session -t "$PROJECT"
 fi
-
-tmux new-session -d -s "$PROJECT" -n "claude" -c "$DIR" "$CMD"
-echo "Started session '$PROJECT' in $DIR"
