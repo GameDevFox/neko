@@ -1,17 +1,48 @@
 ---
 name: wrap
-description: End-of-session wrap-up for Claude Code projects. Invoked via /wrap. Updates CLAUDE.md and docs/*.md with session learnings, reconciles TODO.md (removes previously-committed completions, marks newly-completed items), then stages all session changes and commits with user approval. Use this skill whenever the user runs /wrap or asks to wrap up, close out, or finish the session.
+description: End-of-session wrap-up for Claude Code projects. Invoked via /wrap. Runs a session retro (captures corrections, failed-then-fixed sequences, and rediscoveries into memory so mistakes don't repeat), updates CLAUDE.md and docs/*.md with session learnings, reconciles TODO.md (removes previously-committed completions, marks newly-completed items), then stages all session changes and commits with user approval. Use this skill whenever the user runs /wrap or asks to wrap up, close out, or finish the session.
 ---
 
 # /wrap — Session Wrap-Up
 
 Triggered when the user runs `/wrap` or asks to wrap up or close out the session.
 
-Three phases, run in order: **docs**, **TODO**, **commit**. Complete all three before asking for a single approval.
+Four phases, run in order: **retro**, **docs**, **TODO**, **commit**. Complete all four before asking for a single approval.
 
 ---
 
-## Phase 1: Doc Updates
+## Phase 1: Retro — capture and route learnings
+
+Goal: the next session must not repeat this session's mistakes or re-derive its discoveries. Mine the transcript first, while it's still in context — the docs phase then has real material instead of vague impressions.
+
+### Mine the session for
+
+- **User corrections** — every point where the user said "no", "actually", "don't", redirected you, or edited something you proposed. The correction, generalized one level up, is the learning. Capture *why* and *how to apply it next time*, not just what happened.
+- **Failed→fixed sequences** — a command, path, or approach that failed and the variant that then worked (wrong test command, wrong directory, tool quirk, missing flag). The working form is the learning.
+- **Rediscoveries** — anything you had to figure out that a previous session plausibly already figured out (where X lives, how to run Y, which file is the source of truth). If it wasn't written down, that's the gap to fill now.
+- **The biggest time sink** — and the one sentence of knowledge that would have prevented it.
+
+A session with zero learnings is rare; a session with twenty is unfiltered. Aim for the 1-5 things that will actually change behavior next time.
+
+### Route each learning — decision order
+
+1. **Universal rule for every task in this repo** → `CLAUDE.md` (respect its line budget; something usually has to come out to let it in).
+2. **Deep or topical, useful to a human dev too** → `docs/*.md`.
+3. **About the user, their preferences, or private/cross-repo workflow** → auto-memory (`~/.claude/projects/<project>/memory/`): one file per fact with frontmatter (`type: feedback` for corrections/confirmed approaches with **Why:** and **How to apply:** lines, `type: project` for ongoing-state facts), then add its line to `MEMORY.md` — that index is what future sessions load. Update an existing memory file over creating a near-duplicate.
+4. **Session-specific, won't recur** → drop it. Recording noise erodes trust in the whole store.
+
+### Repeat-offense check
+
+Before writing anything new, read `MEMORY.md` and `CLAUDE.md`. For each mistake found above, check whether it was *already recorded*. If it was, the record failed — re-recording it verbatim will fail again. Escalate instead:
+
+- **Rewrite** the existing entry to be trigger-shaped: name the situation where the mistake happens, the wrong move, and the right move — not a general principle.
+- **Promote** it one tier: memory → CLAUDE.md (loaded every session, can't be missed), or docs → CLAUDE.md one-liner with an `@docs/` pointer.
+
+List repeat offenses explicitly in the wrap summary — the user should see when something needed escalation.
+
+---
+
+## Phase 2: Doc Updates
 
 Update project memory so the next session starts smarter.
 
@@ -44,16 +75,9 @@ Update project memory so the next session starts smarter.
 - Specific and concrete. Vague guidance is worse than none.
 - When something is obsolete, flag it for removal.
 
-### Reflection checklist
+### Source material
 
-Review the session:
-- What problems were solved?
-- What patterns or conventions were established or discovered?
-- What mistakes were made and corrected?
-- What commands, file paths, or tool invocations proved important?
-- What would have saved time if known at the start?
-
-Only capture what is universally applicable, specific, and will still be true in a week.
+Work from the Phase 1 retro: the learnings routed to `CLAUDE.md` and `docs/*.md` land here. Only capture what is universally applicable, specific, and will still be true in a week.
 
 ### What belongs where
 
@@ -69,7 +93,7 @@ Only capture what is universally applicable, specific, and will still be true in
 
 ---
 
-## Phase 2: TODO Reconciliation
+## Phase 3: TODO Reconciliation
 
 Read `TODO.md`. Then do two things in order.
 
@@ -85,11 +109,11 @@ Infer completions from context: what was built, fixed, or closed during the sess
 
 ---
 
-## Phase 3: Commit
+## Phase 4: Commit
 
 ### Step 1: Identify files to stage
 
-Default: **stage everything not yet committed.** The wrap commits one coherent picture of the session — code, docs, tests, and tracking together.
+Default: **stage everything not yet committed.** The wrap commits one coherent picture of the session — code, docs, tests, and tracking together. (Auto-memory files under `~/.claude/` live outside the repo — they are written in Phase 1 but never staged.)
 
 Before staging, run `git status` and scan for changes that look unrelated to the session's work (e.g. a half-finished refactor in an unrelated directory, dependency lockfile churn from an aborted experiment). For each one, **check with the user**: "I see X is also modified — looks unrelated to this session's work. Include it in the wrap commit, or leave it for you to handle?" Default is to include unless the user says otherwise.
 
@@ -114,6 +138,11 @@ Show everything before touching git:
 
 ```
 ## Wrap-up summary
+
+### Learnings (retro)
+[Each learning + where it was routed (CLAUDE.md / docs/x.md / memory / dropped).
+Repeat offenses called out: "X recurred despite <entry> — rewrote/promoted it."
+Or "No durable learnings this session."]
 
 ### CLAUDE.md
 [ADD / REMOVE / UPDATE with before/after for each change, or "No changes"]
@@ -151,7 +180,7 @@ If the user requests changes to the proposed diff or message, incorporate them f
 
 ### Step 5: Nothing to wrap
 
-If `git status` shows no pending changes after Phase 1 and Phase 2 have run (i.e. no uncommitted work in the tree at all):
+If `git status` shows no pending changes after Phases 1–3 have run (i.e. no uncommitted work in the tree at all):
 
 > "Nothing to wrap — docs are up to date and no TODO items changed."
 

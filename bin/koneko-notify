@@ -1,0 +1,35 @@
+#!/bin/bash
+# Send a notification to the Koneko app on the phone over NetBird.
+#
+# Usage:
+#   koneko-notify "message"
+#   koneko-notify "title" "message"
+#
+# Phone address: $KONEKO_HOST overrides; defaults to the phone's NetBird IP.
+
+set -e
+
+HOST="${KONEKO_HOST:-phone.netbird.selfhosted}"
+PORT="${KONEKO_PORT:-6356}"  # 6356 = NEKO on a phone keypad
+
+if [ $# -eq 0 ]; then
+  echo "Usage: koneko-notify [title] <message> [tap-url]" >&2
+  exit 1
+elif [ $# -eq 1 ]; then
+  TITLE="Koneko"
+  MESSAGE="$1"
+  URL=""
+else
+  TITLE="$1"
+  MESSAGE="$2"
+  URL="${3:-}"
+fi
+
+JSON=$(jq -n --arg title "$TITLE" --arg message "$MESSAGE" --arg url "$URL" \
+  '{title: $title, message: $message} + (if $url != "" then {url: $url} else {} end)')
+
+curl -sS --max-time 10 \
+  -X POST \
+  -H 'Content-Type: application/json; charset=utf-8' \
+  -d "$JSON" \
+  "http://$HOST:$PORT/notify"

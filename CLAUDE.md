@@ -69,7 +69,7 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 **System/Security:** `lock-screen`, `key-install` (KeePassXC SSH key extraction), `monero-update` (encrypted volume + daemon), `block-device-list`
 
-**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification)
+**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification), `koneko-notify` (phone notification via Koneko app over NetBird), `claude-ding-hook` (Claude Code Stop/Notification hook: filters noisy types, dings desktop speaker + Koneko), `koneko-agent` (per-machine HTTP service on port 6356 serving tmux session list to the Koneko control panel; run in a tmux window named `agent`)
 
 When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.
 
@@ -124,9 +124,28 @@ Telegram bot credentials for Claude notifications:
 
 Use `claude-notify "message"` to send a Telegram notification from any local session. For remote/scheduled agents, embed the token and chat ID directly in the routine prompt — they cannot read local files.
 
+Use `koneko-notify [title] "message"` to send a native Android notification to the phone instead — see the Koneko section below.
+
+Claude Code hooks (in machine-local `~/.claude/settings.json`, replicate on new machines): both the `Stop` and `Notification` events run `claude-ding-hook`, which filters noisy notification types (idle_prompt, auth_success, elicitation_complete/response) then dings the desktop speaker (`http://desktop.home:1234/ding`) and the phone (koneko, "project - hostname" title + message snippet; AskUserQuestion prompts include the question text; tap opens the session in the Claude app via the remote-control bridge id). Debug log of all hook payloads: `~/.claude/koneko-hook.log` (last 200).
+
 MCP servers (configured in `~/.claude.json`, recreate on each new machine):
 - `claude-notes` — Filesystem MCP: `npx -y @modelcontextprotocol/server-filesystem ~/claude-notes`
 - `personal-db` — SQLite MCP: `uvx mcp-server-sqlite --db-path ~/claude-db.sqlite`
+
+## Koneko (Phone Notifications)
+
+[Koneko](https://github.com/GameDevFox/koneko) (子猫, "kitten") is the mobile extension of neko — an Android app at `~/projects/koneko` (Kotlin + Jetpack Compose). v1 is a notification receiver: a foreground service listens on port `6356` (NEKO on a phone keypad — the network-wide port convention for all neko services) over the NetBird overlay, no cloud push involved.
+
+- Phone NetBird peer: `phone.netbird.selfhosted` (`100.117.13.31`); this machine is `laptop.netbird.selfhosted`
+- API: `GET /ping` (health, returns `koneko`), `POST /notify` with JSON `{"title": ..., "message": ..., "url": optional tap action}` or a plain-text body. The title is the notification's sender name; each distinct title is its own conversation in the shade (convention: `project - hostname`)
+- Send from this machine: `koneko-notify [title] "message" [tap-url]` (env overrides: `KONEKO_HOST`, `KONEKO_PORT`)
+- The listener requires NetBird connected on the phone and the Koneko service running (started on app open)
+
+**Android toolchain on this machine** (set up 2026-06-11):
+- JDK 17 via portage (`dev-java/openjdk-bin:17`), SDK at `~/android-sdk` (cmdline-tools, platform-tools/adb, API 36, build-tools 36) — on PATH via `shell/commonrc` when `~/android-sdk` exists
+- Build: `cd ~/projects/koneko && ./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`
+- Install over wireless adb via NetBird: `adb connect 100.117.13.31:<port>` (port shown in phone's Wireless debugging settings; pairing is already done on this machine), then `adb install -r <apk>`
+- The listener restarts itself after reinstall/reboot (BootReceiver) — verify with `curl http://100.117.13.31:6356/ping` a few seconds after install
 
 ## GitHub Token
 

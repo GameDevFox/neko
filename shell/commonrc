@@ -58,3 +58,9 @@ brewGrepPath='/usr/local/opt/grep/libexec/gnubin'
 if [ -d $brewGrepPath ]; then
 	PATH="$brewGrepPath:$PATH"
 fi
+
+# Android SDK (only if present)
+if [ -d "$HOME/android-sdk" ]; then
+	export ANDROID_HOME="$HOME/android-sdk"
+	PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools"
+fi

@@ -1,0 +1,237 @@
+#!/usr/bin/env node
+// koneko-agent — per-machine HTTP service for the Koneko control panel.
+// Answers on the NEKO port (6356) over the NetBird overlay.
+//
+//   GET  /ping            → {"host", "service": "koneko-agent", "version"}
+//   GET  /sessions        → {"host", "sessions": [{"name", "windows"}]}
+//   GET  /projects        → {"host", "projects": [{"name", "hasSession"}]}
+//   GET  /repos           → {"host", "repos": [{"name", "description"}]}  (GameDevFox, uncloned)
+//   POST /sessions/start  {"name"} → create a tmux session in the project dir running `claude`
+//   POST /sessions/stop   {"name"} → kill the named tmux session
+//   POST /repos/clone     {"name"} → git clone a GameDevFox repo into the projects dir
+//
+// No auth — relies on the overlay being private (same posture as the
+// koneko phone listener). Run under `service` or systemd to survive reboots.
+
+const http = require('http');
+const https = require('https');
+const os = require('os');
+const fs = require('fs');
+const path = require('path');
+const { execFile } = require('child_process');
+
+const PORT = process.env.KONEKO_AGENT_PORT || 6356;
+const HOST = os.hostname().split('.')[0];
+const PROJECTS_DIR =
+  process.env.KONEKO_PROJECTS_DIR || path.join(os.homedir(), 'projects');
+const GITHUB_USER = process.env.KONEKO_GITHUB_USER || 'GameDevFox';
+const VERSION = '0.2.0';
+
+// Project / session names must be plain identifiers. This is the only thing
+// that ever reaches a filesystem path or a `-t <name>` target, so it doubles
+// as the guard against path traversal and arg-injection (execFile already
+// avoids the shell). Reject anything outside this set.
+const VALID_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const validName = (name) =>
+  typeof name === 'string' && name.length <= 100 && VALID_NAME.test(name);
+
+// --- tmux helpers ----------------------------------------------------------
+
+const listSessions = (callback) => {
+  execFile(
+    'tmux',
+    ['list-sessions', '-F', '#{session_name}\t#{session_windows}'],
+    (err, stdout) => {
+      // No tmux server running = no sessions, not an error
+      if (err) return callback([]);
+      const sessions = stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [name, windows] = line.split('\t');
+          return { name, windows: Number(windows) };
+        });
+      callback(sessions);
+    },
+  );
+};
+
+// --- project / repo helpers ------------------------------------------------
+
+// Directories directly under PROJECTS_DIR, each flagged with whether a tmux
+// session of the same name is currently running.
+const listProjects = (callback) => {
+  fs.readdir(PROJECTS_DIR, { withFileTypes: true }, (err, entries) => {
+    if (err) return callback([]);
+    const dirs = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+      .map((e) => e.name)
+      .sort();
+    listSessions((sessions) => {
+      const running = new Set(sessions.map((s) => s.name));
+      callback(dirs.map((name) => ({ name, hasSession: running.has(name) })));
+    });
+  });
+};
+
+// GameDevFox repos from the public GitHub API. Unauthenticated (60 req/hr),
+// which is plenty for occasional control-panel use.
+const listGithubRepos = (callback) => {
+  const options = {
+    hostname: 'api.github.com',
+    path: `/users/${GITHUB_USER}/repos?per_page=100&type=owner&sort=full_name`,
+    headers: { 'User-Agent': 'koneko-agent', Accept: 'application/vnd.github+json' },
+  };
+  const req = https.get(options, (res) => {
+    let body = '';
+    res.on('data', (chunk) => (body += chunk));
+    res.on('end', () => {
+      if (res.statusCode !== 200) {
+        return callback(new Error(`github: HTTP ${res.statusCode}`));
+      }
+      try {
+        const repos = JSON.parse(body).map((r) => ({
+          name: r.name,
+          description: r.description || null,
+        }));
+        callback(null, repos);
+      } catch (e) {
+        callback(e);
+      }
+    });
+  });
+  req.on('error', (e) => callback(e));
+  req.setTimeout(8000, () => req.destroy(new Error('github: timeout')));
+};
+
+// Uncloned GameDevFox repos: the GitHub list minus directories that already
+// exist under PROJECTS_DIR.
+const listUnclonedRepos = (callback) => {
+  listGithubRepos((err, repos) => {
+    if (err) return callback(err);
+    fs.readdir(PROJECTS_DIR, { withFileTypes: true }, (rdErr, entries) => {
+      const existing = new Set(
+        (rdErr ? [] : entries).filter((e) => e.isDirectory()).map((e) => e.name),
+      );
+      callback(
+        null,
+        repos.filter((r) => !existing.has(r.name)),
+      );
+    });
+  });
+};
+
+// --- HTTP plumbing ---------------------------------------------------------
+
+const json = (res, status, body) => {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(body) + '\n');
+};
+
+const readBody = (req, callback) => {
+  let body = '';
+  req.on('data', (chunk) => {
+    body += chunk;
+    if (body.length > 1e6) req.destroy(); // guard against absurd payloads
+  });
+  req.on('end', () => {
+    if (!body) return callback({});
+    try {
+      callback(JSON.parse(body));
+    } catch (e) {
+      callback(null);
+    }
+  });
+};
+
+// --- action handlers -------------------------------------------------------
+
+const startSession = (name, res) => {
+  if (!validName(name)) return json(res, 400, { error: 'invalid name' });
+  const dir = path.join(PROJECTS_DIR, name);
+  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+    return json(res, 404, { error: 'no such project' });
+  }
+  // Already running? Don't clobber it.
+  execFile('tmux', ['has-session', '-t', `=${name}`], (hasErr) => {
+    if (!hasErr) return json(res, 409, { error: 'session already running' });
+    // Create the session detached in the project dir, then launch claude in
+    // window 0 (the service-window convention: window 0 is the claude pane).
+    execFile('tmux', ['new-session', '-d', '-s', name, '-c', dir], (newErr) => {
+      if (newErr) return json(res, 500, { error: String(newErr.message || newErr) });
+      execFile('tmux', ['send-keys', '-t', `${name}:0`, 'claude', 'C-m'], (skErr) => {
+        if (skErr) return json(res, 500, { error: String(skErr.message || skErr) });
+        json(res, 200, { ok: true, name });
+      });
+    });
+  });
+};
+
+const stopSession = (name, res) => {
+  if (!validName(name)) return json(res, 400, { error: 'invalid name' });
+  execFile('tmux', ['kill-session', '-t', `=${name}`], (err) => {
+    if (err) return json(res, 404, { error: 'no such session' });
+    json(res, 200, { ok: true, name });
+  });
+};
+
+const cloneRepo = (name, res) => {
+  if (!validName(name)) return json(res, 400, { error: 'invalid name' });
+  const dir = path.join(PROJECTS_DIR, name);
+  if (fs.existsSync(dir)) return json(res, 409, { error: 'already exists' });
+  // Confirm the name is a real GameDevFox repo before cloning anything — this
+  // is what stops /repos/clone from being an arbitrary-URL fetcher.
+  listGithubRepos((err, repos) => {
+    if (err) return json(res, 502, { error: String(err.message || err) });
+    if (!repos.some((r) => r.name === name)) {
+      return json(res, 404, { error: 'not a GameDevFox repo' });
+    }
+    const url = `https://github.com/${GITHUB_USER}/${name}.git`;
+    execFile('git', ['clone', url, dir], { timeout: 180000 }, (cloneErr) => {
+      if (cloneErr) return json(res, 500, { error: String(cloneErr.message || cloneErr) });
+      json(res, 200, { ok: true, name });
+    });
+  });
+};
+
+// --- server ----------------------------------------------------------------
+
+const server = http.createServer((req, res) => {
+  const { method, url } = req;
+
+  if (method === 'GET') {
+    if (url === '/ping') {
+      return json(res, 200, { host: HOST, service: 'koneko-agent', version: VERSION });
+    }
+    if (url === '/sessions') {
+      return listSessions((sessions) => json(res, 200, { host: HOST, sessions }));
+    }
+    if (url === '/projects') {
+      return listProjects((projects) => json(res, 200, { host: HOST, projects }));
+    }
+    if (url === '/repos') {
+      return listUnclonedRepos((err, repos) => {
+        if (err) return json(res, 502, { error: String(err.message || err) });
+        json(res, 200, { host: HOST, repos });
+      });
+    }
+    return json(res, 404, { error: 'not found' });
+  }
+
+  if (method === 'POST') {
+    return readBody(req, (body) => {
+      if (body === null) return json(res, 400, { error: 'invalid json' });
+      if (url === '/sessions/start') return startSession(body.name, res);
+      if (url === '/sessions/stop') return stopSession(body.name, res);
+      if (url === '/repos/clone') return cloneRepo(body.name, res);
+      json(res, 404, { error: 'not found' });
+    });
+  }
+
+  json(res, 405, { error: 'method not allowed' });
+});
+
+server.listen(PORT, () => {
+  console.log(`koneko-agent ${VERSION}: ${HOST} listening on :${PORT} (projects: ${PROJECTS_DIR})`);
+});

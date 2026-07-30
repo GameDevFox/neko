@@ -13,6 +13,8 @@ export const Foo = <T>(...args): Foo<T> => ({ ... });
 
 Share behavior by importing functions, not via inheritance. Always end TypeScript statements with semicolons.
 
+**Magic numbers:** Avoid unexplained numeric (or string) literals in logic, layout, and math. Extract them to named constants — at the top of the file, or a shared `constants`/`config` module when reused — with names (or a brief comment) that say what the value *means*, e.g. `const SNAP_THRESHOLD_PX = 8;` not `if (d < 8)`. Trivially self-evident values (`0`, `1`, `-1`, `2` in obvious arithmetic, identity/unit values) don't need names. When tuning a value in place, still land it as a named constant.
+
 ## Testing
 
 Write tests first when practical. Only test non-trivial behaviors — skip obvious pass-throughs and things that can't actually break.

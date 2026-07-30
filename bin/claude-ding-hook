@@ -1,0 +1,93 @@
+#!/bin/bash
+# Claude Code hook → all dings: desktop speaker + Koneko phone notification.
+# Handles both Stop (turn finished) and Notification (Claude is blocked
+# waiting for input), with shared filtering of noisy notification types.
+# Reads the hook JSON from stdin; the phone notification title is
+# "<project> - <host>" so multiple machines/sessions are distinguishable.
+
+DESKTOP_DING_URL="http://desktop.home:1234/ding"
+
+set -e
+
+INPUT=$(cat)
+
+# Debug log: keep the last payloads for troubleshooting (one JSON per line)
+LOG="$HOME/.claude/koneko-hook.log"
+jq -c '. + {_logged_at: now | todate}' <<< "$INPUT" >> "$LOG" 2>/dev/null || true
+tail -n 200 "$LOG" > "$LOG.tmp" 2>/dev/null && mv "$LOG.tmp" "$LOG"
+
+CWD=$(jq -r '.cwd // empty' <<< "$INPUT")
+PROJECT=$(basename "${CWD:-$PWD}")
+HOST="${HOSTNAME:-$(hostname)}"
+TITLE="$PROJECT - $HOST"
+
+EVENT=$(jq -r '.hook_event_name // empty' <<< "$INPUT")
+
+case "$EVENT" in
+  Notification)
+    # Filter by type: Stop already covers "ready for input", so the 60s
+    # idle_prompt reminder is redundant; auth/elicitation-complete are
+    # informational. Unknown/future types are forwarded so we don't miss
+    # anything genuinely blocking (permission_prompt, elicitation_dialog).
+    TYPE=$(jq -r '.notification_type // empty' <<< "$INPUT")
+    case "$TYPE" in
+      idle_prompt|auth_success|elicitation_complete|elicitation_response)
+        exit 0
+        ;;
+    esac
+    MESSAGE=$(jq -r '.message // empty' <<< "$INPUT")
+    [ -z "$MESSAGE" ] && MESSAGE="Claude needs your input ($TYPE)"
+
+    # AskUserQuestion fires as a generic permission_prompt with no question
+    # text — pull the real question from the transcript. If the most recent
+    # tool call is an AskUserQuestion, that's what this prompt is.
+    if [ "$TYPE" = "permission_prompt" ]; then
+      TRANSCRIPT=$(jq -r '.transcript_path // empty' <<< "$INPUT")
+      if [ -f "$TRANSCRIPT" ]; then
+        # Transcript writes are batched and may lag the notification by a
+        # few seconds — retry briefly until the question appears on disk.
+        for _ in 1 2 3 4; do
+          LAST_TOOL=$(tail -n 30 "$TRANSCRIPT" | jq -c \
+            'select(.message.content? | type == "array") | .message.content[]
+             | select(.type? == "tool_use")' 2>/dev/null | tail -1)
+          if [ -n "$LAST_TOOL" ] && \
+             [ "$(jq -r '.name' <<< "$LAST_TOOL")" = "AskUserQuestion" ]; then
+            QUESTION=$(jq -r '[.input.questions[]?.question] | join(" • ")' \
+              <<< "$LAST_TOOL")
+            [ -n "$QUESTION" ] && MESSAGE="❓ $QUESTION"
+            break
+          fi
+          sleep 1
+        done
+      fi
+    fi
+    ;;
+  *)
+    # Stop (and anything else): snippet of Claude's final message
+    MESSAGE=$(jq -r '.last_assistant_message // empty' <<< "$INPUT" | tr '\n' ' ' | tr -s ' ')
+    [ -z "$MESSAGE" ] && MESSAGE="Done"
+    ;;
+esac
+
+# Truncate long messages — the notification is a glimpse, not the transcript
+MAX=300
+if [ ${#MESSAGE} -gt $MAX ]; then
+  MESSAGE="${MESSAGE:0:$MAX}…"
+fi
+
+# Tapping the notification opens the session in the Claude mobile app.
+# The URL uses the remote-control bridge id, not the local session UUID —
+# ~/.claude/sessions/*.json maps sessionId -> bridgeSessionId for sessions
+# started with --remote-control.
+SESSION_ID=$(jq -r '.session_id // empty' <<< "$INPUT")
+URL=""
+if [ -n "$SESSION_ID" ]; then
+  BRIDGE_ID=$(jq -r --arg sid "$SESSION_ID" \
+    'select(.sessionId == $sid) | .bridgeSessionId // empty' \
+    ~/.claude/sessions/*.json 2>/dev/null | head -1)
+  [ -n "$BRIDGE_ID" ] && URL="https://claude.ai/code/$BRIDGE_ID"
+fi
+
+# Both targets best-effort — one being unreachable shouldn't silence the other
+curl -sS -m 5 "$DESKTOP_DING_URL" >/dev/null 2>&1 || true
+koneko-notify "$TITLE" "$MESSAGE" "$URL" || true
