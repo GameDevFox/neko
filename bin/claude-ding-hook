@@ -5,7 +5,7 @@
 # Reads the hook JSON from stdin; the phone notification title is
 # "<project> - <host>" so multiple machines/sessions are distinguishable.
 
-DESKTOP_DING_URL="http://desktop.home:1234/ding"
+DESKTOP_DING_URL="http://desktop.home:6356/ding"  # neko-server's ding endpoint
 
 set -e
 

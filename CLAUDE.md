@@ -69,7 +69,7 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 **System/Security:** `lock-screen`, `key-install` (KeePassXC SSH key extraction), `monero-update` (encrypted volume + daemon), `block-device-list`
 
-**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification), `koneko-notify` (phone notification via Koneko app over NetBird), `claude-ding-hook` (Claude Code Stop/Notification hook: filters noisy types, dings desktop speaker + Koneko), `koneko-agent` (per-machine HTTP service on port 6356 serving tmux session list to the Koneko control panel; run in a tmux window named `agent`)
+**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification), `koneko-notify` (phone notification via Koneko app over NetBird), `claude-ding-hook` (Claude Code Stop/Notification hook: filters noisy types, dings desktop speaker + Koneko), `neko-server` (the per-machine neko daemon — one centralized HTTP service on port 6356 acting as a proxy/control surface for the whole machine: `/ping`, `/ding` (plays the machine's ding sound), tmux `/sessions` + start/stop, `/projects`, `/repos` + clone; consumed by the Koneko phone app and callable machine-to-machine over NetBird; run in a tmux window named `neko-server`)
 
 When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.
 
@@ -77,7 +77,18 @@ When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use
 
 ## Config Files
 
-**i3** (`config/.config/i3/config`): Super as mod key, 20px inner gaps, 3-monitor workspace layout (DP-1 left, HDMI-2 center, DP-2 right), Rofi launcher, lock screen via `bin/lock-screen`.
+**neko is installed on multiple machines.** The descriptions below reflect the **desktop machine** (i3 + X11 + LightDM, 3 monitors). Other machines run different desktop environments, display managers, and hardware — a headless server, for example, runs KDE Plasma on Wayland under SDDM with no monitors attached and no `xrandr` installed.
+
+Do not assume the desktop's setup applies to the machine you're on. Check first:
+
+```bash
+loginctl list-sessions                       # who's logged in, on what seat
+ps -ef | grep -E '[X]org|[k]win|[i]3|[s]way' # compositor / WM actually running
+systemctl status display-manager             # SDDM vs LightDM vs none
+grep . /sys/class/drm/card*-*/status         # which outputs are connected
+```
+
+**i3** (`config/.config/i3/config`): Super as mod key, 20px inner gaps, 3-monitor workspace layout (DP-1 left, HDMI-2 center, DP-2 right), Rofi launcher, lock screen via `bin/lock-screen`. Desktop machine only.
 
 **i3status** (`config/.config/i3status/config`): The public config is `config.public` (tracked). `config.private` is gitignored — for machine-specific overrides. The symlinked `config` file should point to or include the appropriate variant.
 
@@ -126,7 +137,7 @@ Use `claude-notify "message"` to send a Telegram notification from any local ses
 
 Use `koneko-notify [title] "message"` to send a native Android notification to the phone instead — see the Koneko section below.
 
-Claude Code hooks (in machine-local `~/.claude/settings.json`, replicate on new machines): both the `Stop` and `Notification` events run `claude-ding-hook`, which filters noisy notification types (idle_prompt, auth_success, elicitation_complete/response) then dings the desktop speaker (`http://desktop.home:1234/ding`) and the phone (koneko, "project - hostname" title + message snippet; AskUserQuestion prompts include the question text; tap opens the session in the Claude app via the remote-control bridge id). Debug log of all hook payloads: `~/.claude/koneko-hook.log` (last 200).
+Claude Code hooks (in machine-local `~/.claude/settings.json`, replicate on new machines): both the `Stop` and `Notification` events run `claude-ding-hook`, which filters noisy notification types (idle_prompt, auth_success, elicitation_complete/response) then dings the desktop speaker (`http://desktop.home:6356/ding`, served by `neko-server`) and the phone (koneko, "project - hostname" title + message snippet; AskUserQuestion prompts include the question text; tap opens the session in the Claude app via the remote-control bridge id). Debug log of all hook payloads: `~/.claude/koneko-hook.log` (last 200).
 
 MCP servers (configured in `~/.claude.json`, recreate on each new machine):
 - `claude-notes` — Filesystem MCP: `npx -y @modelcontextprotocol/server-filesystem ~/claude-notes`

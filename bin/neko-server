@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// koneko-agent — per-machine HTTP service for the Koneko control panel.
-// Answers on the NEKO port (6356) over the NetBird overlay.
+// neko-server — the per-machine neko daemon. One centralized HTTP service that
+// acts as a proxy/control surface for the whole machine, answering on the NEKO
+// port (6356) over the NetBird overlay. Runs on every machine neko is on.
 //
-//   GET  /ping            → {"host", "service": "koneko-agent", "version"}
+//   GET  /ping            → {"host", "service": "neko-server", "version"}
+//   GET  /ding            → play the ding sound on this machine's speaker
 //   GET  /sessions        → {"host", "sessions": [{"name", "windows"}]}
 //   GET  /projects        → {"host", "projects": [{"name", "hasSession"}]}
 //   GET  /repos           → {"host", "repos": [{"name", "description"}]}  (GameDevFox, uncloned)
@@ -10,8 +12,8 @@
 //   POST /sessions/stop   {"name"} → kill the named tmux session
 //   POST /repos/clone     {"name"} → git clone a GameDevFox repo into the projects dir
 //
-// No auth — relies on the overlay being private (same posture as the
-// koneko phone listener). Run under `service` or systemd to survive reboots.
+// No auth — relies on the overlay being private (same posture as the koneko
+// phone listener). Run under `service` or systemd to survive reboots.
 
 const http = require('http');
 const https = require('https');
@@ -20,12 +22,16 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 
-const PORT = process.env.KONEKO_AGENT_PORT || 6356;
+const PORT = process.env.NEKO_SERVER_PORT || 6356;
 const HOST = os.hostname().split('.')[0];
 const PROJECTS_DIR =
-  process.env.KONEKO_PROJECTS_DIR || path.join(os.homedir(), 'projects');
-const GITHUB_USER = process.env.KONEKO_GITHUB_USER || 'GameDevFox';
-const VERSION = '0.2.0';
+  process.env.NEKO_PROJECTS_DIR || path.join(os.homedir(), 'projects');
+const GITHUB_USER = process.env.NEKO_GITHUB_USER || 'GameDevFox';
+// Ding: which sound to play and with what. Env-gated because only machines with
+// a speaker configure it — elsewhere /ding is a no-op rather than an error.
+const DING_SOUND = process.env.NEKO_DING_SOUND || '';
+const DING_PLAYER = process.env.NEKO_DING_PLAYER || 'mpv';
+const VERSION = '0.3.0';
 
 // Project / session names must be plain identifiers. This is the only thing
 // that ever reaches a filesystem path or a `-t <name>` target, so it doubles
@@ -81,7 +87,7 @@ const listGithubRepos = (callback) => {
   const options = {
     hostname: 'api.github.com',
     path: `/users/${GITHUB_USER}/repos?per_page=100&type=owner&sort=full_name`,
-    headers: { 'User-Agent': 'koneko-agent', Accept: 'application/vnd.github+json' },
+    headers: { 'User-Agent': 'neko-server', Accept: 'application/vnd.github+json' },
   };
   const req = https.get(options, (res) => {
     let body = '';
@@ -147,6 +153,17 @@ const readBody = (req, callback) => {
 
 // --- action handlers -------------------------------------------------------
 
+// Play the machine's ding sound. Best-effort and fire-and-forget: the caller
+// (claude-ding-hook) ignores the response, so we don't wait on the player.
+const ding = (res) => {
+  if (!DING_SOUND) {
+    return json(res, 200, { ok: false, error: 'ding not configured on this machine' });
+  }
+  const child = execFile(DING_PLAYER, ['--no-terminal', DING_SOUND], () => {});
+  child.on('error', () => {}); // player missing shouldn't crash the server
+  json(res, 200, { ok: true });
+};
+
 const startSession = (name, res) => {
   if (!validName(name)) return json(res, 400, { error: 'invalid name' });
   const dir = path.join(PROJECTS_DIR, name);
@@ -202,7 +219,10 @@ const server = http.createServer((req, res) => {
 
   if (method === 'GET') {
     if (url === '/ping') {
-      return json(res, 200, { host: HOST, service: 'koneko-agent', version: VERSION });
+      return json(res, 200, { host: HOST, service: 'neko-server', version: VERSION });
+    }
+    if (url === '/ding') {
+      return ding(res);
     }
     if (url === '/sessions') {
       return listSessions((sessions) => json(res, 200, { host: HOST, sessions }));
@@ -233,5 +253,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`koneko-agent ${VERSION}: ${HOST} listening on :${PORT} (projects: ${PROJECTS_DIR})`);
+  console.log(`neko-server ${VERSION}: ${HOST} listening on :${PORT} (projects: ${PROJECTS_DIR})`);
 });
