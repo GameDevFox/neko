@@ -22,6 +22,23 @@ Goal: the next session must not repeat this session's mistakes or re-derive its 
 - **Rediscoveries** — anything you had to figure out that a previous session plausibly already figured out (where X lives, how to run Y, which file is the source of truth). If it wasn't written down, that's the gap to fill now.
 - **The biggest time sink** — and the one sentence of knowledge that would have prevented it.
 
+### Sweep for orphaned shells
+
+Before anything else, check whether the session left a background shell running.
+A long-lived one is nearly always a wait-loop that can never terminate — most
+often `until ! pgrep -f "<pattern>"; do sleep 1; done`, where the pattern
+matches the polling shell's own argv. It is silent: the useful half of the
+command already succeeded, so nothing downstream looks wrong.
+
+```bash
+# Children of the Claude process, oldest first. Anything measured in hours is suspect.
+ps -eo pid,ppid,etimes,stat,comm | awk -v p=$PPID '$2==p'
+```
+
+Inspect a suspect with `ps -o args -p <pid>` before acting, then **kill it by
+PID** — never by pattern, for the reason it is stuck in the first place. Record
+the cause as a learning if it was one of ours.
+
 A session with zero learnings is rare; a session with twenty is unfiltered. Aim for the 1-5 things that will actually change behavior next time.
 
 ### Route each learning — decision order

@@ -8,9 +8,19 @@
 //   GET  /sessions        → {"host", "sessions": [{"name", "windows"}]}
 //   GET  /projects        → {"host", "projects": [{"name", "hasSession"}]}
 //   GET  /repos           → {"host", "repos": [{"name", "description"}]}  (GameDevFox, uncloned)
+//   GET  /transcripts     → {"host", "transcripts": [{"id", "project", "title", "gitBranch", "mtime"}]}
+//   GET  /transcripts/:id → {"host", "id", "project", "title", "cwd", "gitBranch", "messages": [...]}
+//   GET  /speech/:hash    → cached TTS audio for one segment (synthesized on first hit)
 //   POST /sessions/start  {"name"} → create a tmux session in the project dir running `claude`
 //   POST /sessions/stop   {"name"} → kill the named tmux session
 //   POST /repos/clone     {"name"} → git clone a GameDevFox repo into the projects dir
+//   POST /speak           {"text", voice?, format?} → {segments:[{index,text,hash,url}]} playlist
+//   POST /transcripts/:id/messages/:index/speak  {voice?, format?} → same playlist for one message
+//
+// /transcripts reads Claude Code's own session logs under ~/.claude/projects and
+// exposes them for the koneko phone app to browse and read. /speak turns a message
+// into a sentence-by-sentence audio playlist (via the Chatterbox TTS server) that
+// the phone plays and prefetches in order; /speech serves the cached segments.
 //
 // No auth — relies on the overlay being private (same posture as the koneko
 // phone listener). Run under `service` or systemd to survive reboots.
@@ -19,7 +29,10 @@ const http = require('http');
 const https = require('https');
 const os = require('os');
 const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
+const readline = require('readline');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 
 const PORT = process.env.NEKO_SERVER_PORT || 6356;
@@ -31,7 +44,44 @@ const GITHUB_USER = process.env.NEKO_GITHUB_USER || 'GameDevFox';
 // a speaker configure it — elsewhere /ding is a no-op rather than an error.
 const DING_SOUND = process.env.NEKO_DING_SOUND || '';
 const DING_PLAYER = process.env.NEKO_DING_PLAYER || 'mpv';
-const VERSION = '0.3.0';
+const VERSION = '0.5.0';
+
+// Claude Code writes one JSONL session log per conversation under
+// ~/.claude/projects/<slug>/<session-uuid>.jsonl. This is our read source.
+const CLAUDE_PROJECTS_DIR =
+  process.env.NEKO_CLAUDE_PROJECTS_DIR ||
+  path.join(os.homedir(), '.claude', 'projects');
+// Listing scans only the first slice of each log to find a title/cwd — the
+// aiTitle and opening user prompt land near the top, so a full parse (files run
+// to thousands of lines) is unnecessary just to build the list.
+const TRANSCRIPT_HEAD_LINES = 200;
+const TRANSCRIPT_LIST_DEFAULT_LIMIT = 50;
+const TRANSCRIPT_LIST_MAX_LIMIT = 200;
+// List titles are truncated; the fallback (first user prompt) can be arbitrarily long.
+const TRANSCRIPT_TITLE_MAX_CHARS = 100;
+// Session ids are the log filename — a v4-style uuid. Validate before touching
+// the filesystem so an id can never escape CLAUDE_PROJECTS_DIR.
+const SESSION_ID = /^[0-9a-fA-F][0-9a-fA-F-]{7,63}$/;
+
+// Text-to-speech: neko-server proxies the machine's Chatterbox TTS server. It
+// splits a message into sentences and hands the phone a playlist of per-sentence
+// audio URLs to play (and prefetch) in order — so playback starts on sentence 1
+// while the rest synthesize. Audio is cached on disk by content hash, so replays
+// and re-scrolls are free. Chatterbox may run on another fleet machine, hence a
+// configurable URL; the phone always goes through neko-server, never direct.
+const TTS_URL = process.env.NEKO_TTS_URL || 'http://127.0.0.1:8004';
+const TTS_VOICE = process.env.NEKO_TTS_VOICE || 'Emily.wav';
+const TTS_FORMAT = process.env.NEKO_TTS_FORMAT || 'mp3'; // wav | mp3 | opus
+const TTS_CACHE_DIR =
+  process.env.NEKO_TTS_CACHE_DIR ||
+  path.join(os.homedir(), '.cache', 'neko-server', 'tts');
+const TTS_TIMEOUT_MS = 120000; // synthesis can be slow, especially on a cold model load
+// Cap a runaway unpunctuated "sentence" so a wall of text without a period still
+// gets broken into segments and playback can start promptly.
+const TTS_MAX_SEGMENT_CHARS = 300;
+const TTS_FORMATS = new Set(['wav', 'mp3', 'opus']);
+const VOICE_NAME = /^[A-Za-z0-9._-]{1,64}$/;
+const AUDIO_HASH = /^[0-9a-f]{64}$/;
 
 // Project / session names must be plain identifiers. This is the only thing
 // that ever reaches a filesystem path or a `-t <name>` target, so it doubles
@@ -128,6 +178,382 @@ const listUnclonedRepos = (callback) => {
   });
 };
 
+// --- claude transcript helpers ---------------------------------------------
+
+// Pull human-readable prose out of a message's content, dropping everything
+// that isn't conversation: tool calls, tool results, and thinking. Works for
+// both roles — a user turn is a bare string or text blocks; an assistant turn
+// is text blocks interleaved with thinking/tool_use we don't want.
+const messageText = (content) => {
+  if (typeof content === 'string') return content.trim();
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text)
+    .join('\n')
+    .trim();
+};
+
+const truncate = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
+
+// Scan just the first TRANSCRIPT_HEAD_LINES events of a log to derive list
+// metadata: a title (the aiTitle event, else the opening user prompt) plus the
+// cwd/branch. Both land near the top, so we never parse the whole file to list.
+const scanHead = async (file) => {
+  const stream = fs.createReadStream(file, { encoding: 'utf8' });
+  const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+  let aiTitle = '';
+  let firstUserText = '';
+  let cwd = '';
+  let gitBranch = '';
+  let lines = 0;
+  try {
+    for await (const line of rl) {
+      if (!line) continue;
+      if (++lines > TRANSCRIPT_HEAD_LINES) break;
+      let ev;
+      try {
+        ev = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (ev.cwd && !cwd) cwd = ev.cwd;
+      if (ev.gitBranch && !gitBranch) gitBranch = ev.gitBranch;
+      if (ev.type === 'ai-title' && ev.aiTitle && !aiTitle) aiTitle = ev.aiTitle;
+      if (ev.type === 'user' && !firstUserText) {
+        firstUserText = messageText(ev.message && ev.message.content);
+      }
+      if (aiTitle && cwd && gitBranch) break;
+    }
+  } finally {
+    rl.close();
+    stream.destroy();
+  }
+  const title = aiTitle || firstUserText || '(untitled)';
+  return {
+    title: truncate(title, TRANSCRIPT_TITLE_MAX_CHARS),
+    project: cwd ? path.basename(cwd) : '',
+    cwd,
+    gitBranch,
+  };
+};
+
+// All session logs across every project slug, newest activity first, capped at
+// `limit`. mtime is the sort key (cheap stat); the head scan for titles runs
+// only on the capped set.
+const listTranscripts = async (limit) => {
+  let slugs;
+  try {
+    slugs = await fsp.readdir(CLAUDE_PROJECTS_DIR, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const files = [];
+  for (const slug of slugs) {
+    if (!slug.isDirectory()) continue;
+    const dir = path.join(CLAUDE_PROJECTS_DIR, slug.name);
+    let entries;
+    try {
+      entries = await fsp.readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      if (!name.endsWith('.jsonl')) continue;
+      files.push({ id: name.slice(0, -'.jsonl'.length), file: path.join(dir, name) });
+    }
+  }
+  const stated = await Promise.all(
+    files.map(async (f) => {
+      try {
+        const st = await fsp.stat(f.file);
+        return { ...f, mtimeMs: st.mtimeMs, mtime: st.mtime.toISOString() };
+      } catch {
+        return { ...f, mtimeMs: 0, mtime: null };
+      }
+    }),
+  );
+  stated.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return Promise.all(
+    stated.slice(0, limit).map(async (f) => {
+      const head = await scanHead(f.file);
+      return {
+        id: f.id,
+        project: head.project,
+        title: head.title,
+        gitBranch: head.gitBranch,
+        mtime: f.mtime,
+      };
+    }),
+  );
+};
+
+// Resolve a session id to its log path by matching the filename — the id never
+// gets joined into a path as a directory component, so it can't traverse out.
+const findTranscriptFile = async (id) => {
+  let slugs;
+  try {
+    slugs = await fsp.readdir(CLAUDE_PROJECTS_DIR, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  const target = `${id}.jsonl`;
+  for (const slug of slugs) {
+    if (!slug.isDirectory()) continue;
+    const candidate = path.join(CLAUDE_PROJECTS_DIR, slug.name, target);
+    try {
+      await fsp.access(candidate);
+      return candidate;
+    } catch {
+      // not in this slug — keep looking
+    }
+  }
+  return null;
+};
+
+// Full conversation history for one session: user/assistant turns only, each
+// reduced to its speakable text. Empty (tool-only) turns are dropped. `index`
+// is a stable per-message handle the future /speak endpoint will address.
+const readTranscript = async (id) => {
+  const file = await findTranscriptFile(id);
+  if (!file) return null;
+  const stream = fs.createReadStream(file, { encoding: 'utf8' });
+  const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+  const messages = [];
+  let aiTitle = '';
+  let firstUserText = '';
+  let cwd = '';
+  let gitBranch = '';
+  let index = 0;
+  for await (const line of rl) {
+    if (!line) continue;
+    let ev;
+    try {
+      ev = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (ev.cwd && !cwd) cwd = ev.cwd;
+    if (ev.gitBranch && !gitBranch) gitBranch = ev.gitBranch;
+    if (ev.type === 'ai-title' && ev.aiTitle && !aiTitle) aiTitle = ev.aiTitle;
+    if (ev.type !== 'user' && ev.type !== 'assistant') continue;
+    const text = messageText(ev.message && ev.message.content);
+    if (!text) continue; // tool-only turn: nothing to show or read aloud
+    if (ev.type === 'user' && !firstUserText) firstUserText = text;
+    messages.push({ index: index++, role: ev.type, text, ts: ev.timestamp || null });
+  }
+  const title = aiTitle || firstUserText || '(untitled)';
+  return {
+    id,
+    project: cwd ? path.basename(cwd) : '',
+    title: truncate(title, TRANSCRIPT_TITLE_MAX_CHARS),
+    cwd,
+    gitBranch,
+    messages,
+  };
+};
+
+// --- text-to-speech helpers ------------------------------------------------
+
+const resolveVoice = (v) =>
+  v == null ? TTS_VOICE : VOICE_NAME.test(v) ? v : null;
+const resolveFormat = (f) =>
+  f == null ? TTS_FORMAT : TTS_FORMATS.has(f) ? f : null;
+
+// Strip markdown that reads badly aloud — code (fenced + inline), link/image
+// syntax, and line-level markers. Only the *spoken* text is cleaned; the phone
+// still displays the original from /transcripts/:id.
+const cleanForSpeech = (md) =>
+  md
+    .replace(/```[\s\S]*?```/g, ' ') // fenced code blocks
+    .replace(/~~~[\s\S]*?~~~/g, ' ')
+    .replace(/`([^`]*)`/g, '$1') // inline code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // links → link text
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '') // headings
+    .replace(/^\s*>\s?/gm, '') // blockquotes
+    .replace(/^\s*[-*+]\s+/gm, '') // bullet markers
+    .replace(/^\s*\d+\.\s+/gm, '') // numbered markers
+    .replace(/\*\*|\*|__|(?<![A-Za-z0-9])_(?![A-Za-z0-9])/g, '') // emphasis
+    .replace(/[ \t]+/g, ' ');
+
+// Break a message into speakable segments: by paragraph, then by sentence, with
+// a hard length cap so an unpunctuated wall of text still segments. Segments with
+// no letters or digits (pure punctuation) are dropped.
+const splitForSpeech = (text) => {
+  const out = [];
+  const hasSpeakable = (s) => /[A-Za-z0-9]/.test(s);
+  for (const para of cleanForSpeech(text).split(/\n+/)) {
+    if (!para.trim()) continue;
+    for (const piece of para.trim().split(/(?<=[.!?])\s+/)) {
+      let s = piece.trim();
+      while (s.length > TTS_MAX_SEGMENT_CHARS) {
+        let cut = s.lastIndexOf(' ', TTS_MAX_SEGMENT_CHARS);
+        if (cut <= 0) cut = TTS_MAX_SEGMENT_CHARS; // one giant token: hard cut
+        const head = s.slice(0, cut).trim();
+        if (hasSpeakable(head)) out.push(head);
+        s = s.slice(cut).trim();
+      }
+      if (s && hasSpeakable(s)) out.push(s);
+    }
+  }
+  return out;
+};
+
+const ttsHash = (text, voice, format) =>
+  crypto.createHash('sha256').update(`${voice}\n${format}\n${text}`).digest('hex');
+
+// POST one segment's text to Chatterbox's OpenAI-compatible endpoint, resolving
+// to the raw audio bytes.
+const ttsSynthesize = (text, voice, format) =>
+  new Promise((resolve, reject) => {
+    const target = new URL('/v1/audio/speech', TTS_URL);
+    const payload = JSON.stringify({
+      model: 'chatterbox',
+      input: text,
+      voice,
+      response_format: format,
+    });
+    const lib = target.protocol === 'https:' ? https : http;
+    const req = lib.request(
+      target,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const buf = Buffer.concat(chunks);
+          if (res.statusCode !== 200) {
+            return reject(
+              new Error(`tts HTTP ${res.statusCode}: ${buf.toString('utf8').slice(0, 200)}`),
+            );
+          }
+          resolve(buf);
+        });
+      },
+    );
+    req.on('error', reject);
+    req.setTimeout(TTS_TIMEOUT_MS, () => req.destroy(new Error('tts: timeout')));
+    req.end(payload);
+  });
+
+// Return the cached audio path for a hash, synthesizing + caching it on first
+// miss. Concurrent requests for the same hash share one synthesis (inflight map)
+// so we never generate the same segment twice at once.
+const ttsInflight = new Map();
+const ensureAudio = (hash, meta) => {
+  if (ttsInflight.has(hash)) return ttsInflight.get(hash);
+  const audioPath = path.join(TTS_CACHE_DIR, hash);
+  const work = (async () => {
+    try {
+      try {
+        await fsp.access(audioPath);
+        return audioPath; // already cached
+      } catch {
+        // miss — synthesize below
+      }
+      const buf = await ttsSynthesize(meta.text, meta.voice, meta.format);
+      const tmp = `${audioPath}.partial`;
+      await fsp.writeFile(tmp, buf);
+      await fsp.rename(tmp, audioPath); // atomic publish
+      return audioPath;
+    } finally {
+      // Clear the slot from inside the task so we never spawn a second, unhandled
+      // promise chain (a rejected .finally() off the returned promise would crash
+      // the process). The returned `work` carries the rejection to its caller.
+      ttsInflight.delete(hash);
+    }
+  })();
+  ttsInflight.set(hash, work);
+  return work;
+};
+
+// Build a segment playlist for a message: split, hash each segment, persist a
+// sidecar (text/voice/format) so /speech/:hash can synthesize on demand, and
+// pre-warm segment 0 so playback starts fast.
+const buildPlaylist = async (text, voice, format) => {
+  const segments = splitForSpeech(text).map((s, index) => {
+    const hash = ttsHash(s, voice, format);
+    return { index, text: s, hash, url: `/speech/${hash}` };
+  });
+  await Promise.all(
+    segments.map((seg) =>
+      fsp
+        .writeFile(
+          path.join(TTS_CACHE_DIR, `${seg.hash}.json`),
+          JSON.stringify({ text: seg.text, voice, format }),
+        )
+        .catch(() => {}), // best-effort; a real miss re-surfaces when /speech runs
+    ),
+  );
+  if (segments[0]) {
+    ensureAudio(segments[0].hash, { text: segments[0].text, voice, format }).catch(() => {});
+  }
+  return { voice, format, count: segments.length, segments };
+};
+
+// GET /speech/:hash — serve a cached segment, synthesizing on first request.
+const serveSpeech = async (hash, res) => {
+  if (!AUDIO_HASH.test(hash)) return json(res, 400, { error: 'invalid audio id' });
+  let meta;
+  try {
+    meta = JSON.parse(await fsp.readFile(path.join(TTS_CACHE_DIR, `${hash}.json`), 'utf8'));
+  } catch {
+    return json(res, 404, { error: 'unknown audio segment' });
+  }
+  let audioPath;
+  try {
+    audioPath = await ensureAudio(hash, meta);
+  } catch (e) {
+    return json(res, 502, { error: `tts unavailable: ${String(e.message || e)}` });
+  }
+  const stat = await fsp.stat(audioPath);
+  res.writeHead(200, {
+    'Content-Type': `audio/${meta.format}`,
+    'Content-Length': stat.size,
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  });
+  fs.createReadStream(audioPath).pipe(res);
+};
+
+// POST /speak {text} — playlist for arbitrary text (handy for testing).
+const speakText = (body, res) => {
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (!text) return json(res, 400, { error: 'missing text' });
+  const voice = resolveVoice(body.voice);
+  const format = resolveFormat(body.format);
+  if (!voice) return json(res, 400, { error: 'invalid voice' });
+  if (!format) return json(res, 400, { error: 'invalid format' });
+  buildPlaylist(text, voice, format)
+    .then((pl) => json(res, 200, { host: HOST, ...pl }))
+    .catch((e) => json(res, 500, { error: String(e.message || e) }));
+};
+
+// POST /transcripts/:id/messages/:index/speak — playlist for one message.
+const speakMessage = (id, index, body, res) => {
+  if (!SESSION_ID.test(id)) return json(res, 400, { error: 'invalid session id' });
+  const voice = resolveVoice(body.voice);
+  const format = resolveFormat(body.format);
+  if (!voice) return json(res, 400, { error: 'invalid voice' });
+  if (!format) return json(res, 400, { error: 'invalid format' });
+  readTranscript(id)
+    .then((t) => {
+      if (!t) return json(res, 404, { error: 'no such transcript' });
+      const msg = t.messages.find((m) => m.index === index);
+      if (!msg) return json(res, 404, { error: 'no such message' });
+      return buildPlaylist(msg.text, voice, format).then((pl) =>
+        json(res, 200, { host: HOST, id, index, ...pl }),
+      );
+    })
+    .catch((e) => json(res, 500, { error: String(e.message || e) }));
+};
+
 // --- HTTP plumbing ---------------------------------------------------------
 
 const json = (res, status, body) => {
@@ -216,6 +642,10 @@ const cloneRepo = (name, res) => {
 
 const server = http.createServer((req, res) => {
   const { method, url } = req;
+  // Split path from query so routes with params/queries (/transcripts?limit=…,
+  // /transcripts/:id) match cleanly; the older exact-match routes carry neither.
+  const parsed = new URL(url, 'http://localhost');
+  const pathname = parsed.pathname;
 
   if (method === 'GET') {
     if (url === '/ping') {
@@ -236,6 +666,33 @@ const server = http.createServer((req, res) => {
         json(res, 200, { host: HOST, repos });
       });
     }
+    if (pathname === '/transcripts') {
+      const raw = Number(parsed.searchParams.get('limit'));
+      const limit =
+        Number.isFinite(raw) && raw > 0
+          ? Math.min(raw, TRANSCRIPT_LIST_MAX_LIMIT)
+          : TRANSCRIPT_LIST_DEFAULT_LIMIT;
+      return listTranscripts(limit)
+        .then((transcripts) => json(res, 200, { host: HOST, transcripts }))
+        .catch((e) => json(res, 500, { error: String(e.message || e) }));
+    }
+    if (pathname.startsWith('/speech/')) {
+      const hash = pathname.slice('/speech/'.length);
+      return serveSpeech(hash, res).catch((e) =>
+        json(res, 500, { error: String(e.message || e) }),
+      );
+    }
+    if (pathname.startsWith('/transcripts/')) {
+      const id = decodeURIComponent(pathname.slice('/transcripts/'.length));
+      if (!SESSION_ID.test(id)) return json(res, 400, { error: 'invalid session id' });
+      return readTranscript(id)
+        .then((t) =>
+          t
+            ? json(res, 200, { host: HOST, ...t })
+            : json(res, 404, { error: 'no such transcript' }),
+        )
+        .catch((e) => json(res, 500, { error: String(e.message || e) }));
+    }
     return json(res, 404, { error: 'not found' });
   }
 
@@ -245,11 +702,25 @@ const server = http.createServer((req, res) => {
       if (url === '/sessions/start') return startSession(body.name, res);
       if (url === '/sessions/stop') return stopSession(body.name, res);
       if (url === '/repos/clone') return cloneRepo(body.name, res);
+      if (pathname === '/speak') return speakText(body, res);
+      const speakMatch = pathname.match(
+        /^\/transcripts\/([^/]+)\/messages\/(\d+)\/speak$/,
+      );
+      if (speakMatch) return speakMessage(speakMatch[1], Number(speakMatch[2]), body, res);
       json(res, 404, { error: 'not found' });
     });
   }
 
   json(res, 405, { error: 'method not allowed' });
+});
+
+// TTS segment cache lives on disk so audio survives restarts; create it up front.
+fs.mkdirSync(TTS_CACHE_DIR, { recursive: true });
+
+// Last-resort backstop: this daemon is always on (phone + ding hooks depend on
+// it), so a stray async rejection must never take the process down. Log, survive.
+process.on('unhandledRejection', (err) => {
+  console.error('unhandledRejection:', err && err.message ? err.message : err);
 });
 
 server.listen(PORT, () => {
