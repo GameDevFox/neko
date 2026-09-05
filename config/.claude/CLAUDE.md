@@ -19,6 +19,10 @@ Share behavior by importing functions, not via inheritance. Always end TypeScrip
 
 **Prior art before an abstraction.** A general mechanism — a utility, a scheduler, a caching layer — gets a prior-art check before it gets designed: name the pattern, find who has already solved it, and say plainly whether to borrow or build. *"Nothing fits, and here is why"* is a wanted answer, not a failure to find one. A one-off fix needs none of this.
 
+**The repo's own docs are the first prior art, and the file index is not enough.** A `CLAUDE.md` list of documents gets you to a *file*; the decision you are about to re-make lives in a *heading*. Grep `^#` across `docs/` for the nouns of the decision **before** proposing one. On 2026-09-05 I told the user a persistence model "needed naming" while `docs/state.md` §*Ownership transfers at boot* had stated it verbatim a week earlier — and the index line was in context the whole time. Three more the same session were found by luck or by being asked. The tell is the feeling of already knowing the area. Promoted from [[feedback-grep-doc-headings-before-designing]].
+
+**A comment is a claim about the code as it was when somebody wrote it.** Before building a plan, an explanation or a diagram on how something works, read the path — not the paragraph above it. A comment in one layer is not evidence about another: on 2026-09-04 a `view.ts` note about the *ledger* pairing tool calls was carried across to *history*, producing a confident description of a 400 that cannot happen and a work item that was already done; the same session claimed compaction blocked on model calls without opening the function that turned out to be a synchronous slice. Both were caught by a user's question rather than by review, and both would have shaped work. Promoted from [[feedback-verify-before-claiming]].
+
 **Simplest implementation first.** Ship the smallest version that is genuinely useful and record the rest as follow-ons. Decide what to defer *before* starting, not after.
 
 **File a settled idea where it belongs, immediately.** An idea handed over in conversation — a mechanic, a design tweak, a piece of lore — goes into the project's existing structure in the same turn, matching the conventions of its neighbours. Don't park it in a scratch file, don't leave it in chat, and don't ask where it goes when the structure already answers that. An open thread still under discussion is different: that one is parked on the agenda and filed when it resolves.
@@ -38,6 +42,8 @@ Write tests first when practical. Only test non-trivial behaviors — skip obvio
 **A passing test is not evidence until you have watched it fail.** Mutate the line it covers and re-run. Five tests written in one day each passed for a different wrong reason — wrong layer, wrong timescale, a guard that never fired, a double that bypassed the code — and mutation caught all five where review caught none.
 
 **Mutate the wiring, not only the logic.** A pure function with thorough tests that nothing actually calls leaves the suite green when you delete the call site. A zero-red mutation is itself the finding.
+
+**A green mutation means the *ordinary* case is uncovered, not that the code is fine.** Three in one session, identical shape each time: the test exercised the interesting branch and left the dull one — the paths that *agreed* rather than disagreed, `null` where the matrix only carried `undefined`, and the helper called directly rather than through the real caller. Write the boring case first; it is the one nothing else will reach.
 
 **Run tests from the repo root, scoped with the package manager's filter flag** (`pnpm --filter <pkg>`, `yarn workspace <pkg>`) rather than by `cd`-ing into a package. A `cd` persists into the next Bash call, so a later root-level test command runs that package alone and reports a clean pass that reads as the whole suite.
 
@@ -68,6 +74,14 @@ Never stage, commit, push, or perform any other git write operation unless expli
 **Never `git checkout`/`restore` to undo your own edit** — a patch that came out wrong, a mutation test to revert. It restores the file to HEAD and discards every *other* uncommitted change in it: it has silently deleted finished work three times in one session, and the suite went green because the tests for the lost code went with it. Undo with an inverse edit, or ask to commit first. Then grep for a symbol that should have survived — `git status` showing the file modified proves nothing.
 
 **Never anchor an edit on a pattern you haven't counted.** `replace(old, new, 1)` and regex insertion both take the *first* match, so a pattern appearing three times lands the edit in the wrong place; and `.replace()` returns the string unchanged when the pattern is absent at all — no error, no diff, no signal. One check covers both: assert the pattern occurs **exactly once** before editing (`t.count(old) == 1`, `grep -c`), or anchor on line numbers you have just read. The wrong-site half has gone wrong in six distinct shapes.
+
+**A mutation you cannot revert is worse than one you never made.** Counting the original is only half of it: the *replacement* must be as unique as the pattern it replaced, or the revert cannot find its way back. On 2026-09-04 a mutation turned `actor: speaker,` into `actor: null,` — which already appeared elsewhere in the file — so the revert's own uniqueness assertion threw and left the file mutated mid-run. Assert both directions before writing, or restore by the line numbers you captured.
+
+## Local Models
+
+**Ollama's `/v1` endpoint silently discards the `options` block, so a per-request `num_ctx` does nothing.** The server quietly serves its 4096 default, truncates the prompt to fit, and returns HTTP 200 — no error anywhere. The truncation cuts the tool definitions off the front, so the model starts inventing tool-call syntax, which reads as "the local model is too dumb to format tool calls" when it simply never saw the tools. `num_ctx`, `top_k`, `min_p` and `repeat_penalty` survive only in a Modelfile; `temperature`, `top_p` and the penalties are real OpenAI fields and do pass through. Before debugging any local model's behaviour, run `curl -s localhost:11434/api/ps` and read the served `context_length` — a reported 4096 means nothing you configured took effect, and a harness probing `/api/show` will report the GGUF training max while believing it.
+
+Full notes — diagnostics, context-sizing economics, prefix-cache behaviour, sampling measurements, setup checklist: `~/neko/misc/ollama-local-endpoint-gotchas.md`
 
 ## Service Windows
 
