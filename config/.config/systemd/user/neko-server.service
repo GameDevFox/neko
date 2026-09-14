@@ -1,0 +1,14 @@
+[Unit]
+Description=neko-server — per-machine neko daemon (HTTP control surface on :6356)
+After=network.target
+
+[Service]
+# Machine-local settings (NEKO_DING_SOUND, NEKO_SERVER_PORT, ...). Optional:
+# the leading "-" means it is fine for machines that don't have one.
+EnvironmentFile=-%h/.neko/neko-server.env
+ExecStart=%h/neko/bin/neko-server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

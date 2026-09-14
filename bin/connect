@@ -1,0 +1,71 @@
+#!/bin/bash
+# Attach to a Claude Code / tmux session running on another machine over SSH.
+#
+# Usage:
+#   connect                     List sessions on the default host
+#   connect <session>           Attach to <session> on the default host
+#   connect <session> <host>    Attach to <session> on <host>
+#   connect -l <host>           List sessions on <host>
+#
+# The default host comes from $NEKO_CONNECT_HOST — set it in ~/.neko/.zshrc,
+# since it differs per machine and isn't tracked in this repo. Example:
+#   export NEKO_CONNECT_HOST=server.home
+
+set -e
+
+# tmux on the remote end needs a UTF-8 locale or box-drawing chars break.
+REMOTE_LOCALE='LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8'
+
+usage() {
+  sed -n '2,/^$/s/^# \?//p' "$0" >&2
+}
+
+LIST_ONLY=false
+
+case "$1" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  -l|--list)
+    LIST_ONLY=true
+    shift
+    # `connect -l <host>` reads the host as the first remaining arg
+    if [ -n "$1" ]; then
+      set -- "" "$1"
+    fi
+    ;;
+esac
+
+SESSION="$1"
+HOST="${2:-$NEKO_CONNECT_HOST}"
+
+if [ -z "$HOST" ]; then
+  echo "connect: no host given and NEKO_CONNECT_HOST is not set" >&2
+  echo "  Set it in ~/.neko/.zshrc, e.g. export NEKO_CONNECT_HOST=server.home" >&2
+  echo "  Or pass one: connect <session> <host>" >&2
+  exit 1
+fi
+
+list_sessions() {
+  ssh "$HOST" 'tmux ls' 2>/dev/null
+}
+
+if [ -z "$SESSION" ] || [ "$LIST_ONLY" = true ]; then
+  if ! OUTPUT="$(list_sessions)" || [ -z "$OUTPUT" ]; then
+    echo "No tmux sessions on $HOST" >&2
+    exit 1
+  fi
+  echo "$OUTPUT"
+  exit 0
+fi
+
+# Verify the session exists first, so a typo shows the real options instead of
+# a bare tmux error.
+if ! ssh "$HOST" "tmux has-session -t $(printf '%q' "$SESSION")" 2>/dev/null; then
+  echo "No session '$SESSION' on $HOST. Available:" >&2
+  list_sessions >&2 || echo "  (none)" >&2
+  exit 1
+fi
+
+exec ssh -t "$HOST" "$REMOTE_LOCALE tmux attach -t $(printf '%q' "$SESSION")"
