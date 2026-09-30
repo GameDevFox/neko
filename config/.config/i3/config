@@ -231,7 +231,6 @@ bindsym $mod+Shift+s sticky toggle
 
 bindsym $mod+Shift+h exec code ~
 bindsym $mod+Shift+n exec code ~/neko
-bindsym $mod+Shift+c exec code --new-window ~/.config/i3/config
 
 bindsym $mod+l exec ~/neko/bin/lock-screen
 # bindsym $mod+Shift+l exec slock
@@ -239,14 +238,13 @@ bindsym $mod+l exec ~/neko/bin/lock-screen
 bindsym $mod+Shift+f exec firefox
 bindsym $mod+Shift+k exec keepassxc
 bindsym $mod+Shift+m exec gnome-system-monitor
-bindsym $mod+Shift+v exec rofi -modi "videos:modi-videos" -show videos
 
 bindsym Print exec gnome-screenshot --area
 bindsym $mod+Print exec gnome-screenshot --window
 
 bindsym $mod+y exec ytdl
 
-bindsym $mod+Shift+c exec code --new-window ~/.config/i3/config
+bindsym $mod+Shift+c exec ~/neko/bin/connect-open
 bindsym $mod+Shift+e exec firefox "https://emojipedia.org/en/search?q=$(echo -n | rofi -dmenu)"
 bindsym $mod+Shift+f exec firefox
 bindsym $mod+Shift+g exec firefox "https://www.grok.com/?q=$(echo -n | rofi -dmenu)"
@@ -258,7 +256,7 @@ bindsym $mod+Shift+m exec gnome-system-monitor
 bindsym $mod+Shift+n exec code ~/neko
 bindsym $mod+Shift+p exec ~/neko/bin/project-open
 bindsym $mod+Shift+s exec spectacle -b -n -r
-bindsym $mod+Shift+v exec rofi -modi "videos:modi-videos" -show videos
+bindsym $mod+Shift+v exec ~/neko/bin/connect-code
 bindsym $mod+Shift+w exec nitrogen --restore
 bindsym $mod+Shift+x exec "~/.screenlayout/$(ls ~/.screenlayout | rofi -dmenu)"
 bindsym $mod+Shift+y exec firefox "https://www.youtube.com/results?search_query=$(echo -n | rofi -dmenu)"

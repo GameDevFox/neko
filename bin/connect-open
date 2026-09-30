@@ -1,0 +1,11 @@
+#!/bin/bash
+# Pick a tmux session on the default connect host with rofi, then attach to it
+# in a new terminal. A name typed into rofi that isn't listed is passed through
+# too — connect reports the real options if it doesn't exist.
+
+SESSION=$(connect 2>/dev/null | cut -d: -f1 | rofi -dmenu -p connect)
+if [ "$SESSION" == "" ]; then
+  exit 1
+fi
+
+open-term connect "$SESSION"

@@ -7,9 +7,11 @@
 #   connect <session> <host>    Attach to <session> on <host>
 #   connect -l <host>           List sessions on <host>
 #
-# The default host comes from $NEKO_CONNECT_HOST — set it in ~/.neko/.zshrc,
-# since it differs per machine and isn't tracked in this repo. Example:
-#   export NEKO_CONNECT_HOST=server.home
+# The default host is read from ~/.neko/connect-host (first line), since it
+# differs per machine and isn't tracked in this repo. It's a file rather than an
+# env var so launchers that never read .zshrc (i3, rofi) still find it:
+#   echo server.home > ~/.neko/connect-host
+# $NEKO_CONNECT_HOST, if set, overrides the file. See connect-host.
 
 set -e
 
@@ -38,11 +40,8 @@ case "$1" in
 esac
 
 SESSION="$1"
-HOST="${2:-$NEKO_CONNECT_HOST}"
-
-if [ -z "$HOST" ]; then
-  echo "connect: no host given and NEKO_CONNECT_HOST is not set" >&2
-  echo "  Set it in ~/.neko/.zshrc, e.g. export NEKO_CONNECT_HOST=server.home" >&2
+HOST="$2"
+if [ -z "$HOST" ] && ! HOST="$(connect-host)"; then
   echo "  Or pass one: connect <session> <host>" >&2
   exit 1
 fi

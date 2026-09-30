@@ -69,6 +69,8 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 **System/Security:** `lock-screen`, `key-install` (KeePassXC SSH key extraction), `monero-update` (encrypted volume + daemon), `block-device-list`
 
+**Remote:** `connect` (attach to a tmux session on another machine over SSH; default host from `~/.neko/connect-host`, overridable by `$NEKO_CONNECT_HOST`; `connect-open` picks a session with rofi and attaches in a terminal — bound to `$mod+Shift+c`; `connect-code` picks one the same way and opens its folder in proprietary VS Code over Remote-SSH — `$mod+Shift+v`; `connect-host` prints the resolved default host)
+
 **Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification), `koneko-notify` (phone notification via Koneko app over NetBird), `claude-ding-hook` (Claude Code Stop/Notification hook: filters noisy types, dings desktop speaker + Koneko), `neko-server` (the per-machine neko daemon — one centralized HTTP service on port 6356 acting as a proxy/control surface for the whole machine: `/ping`, `/ding` (plays the machine's ding sound), tmux `/sessions` + start/stop, `/projects`, `/repos` + clone; consumed by the Koneko phone app and callable machine-to-machine over NetBird; run in a tmux window named `neko-server`)
 
 When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.

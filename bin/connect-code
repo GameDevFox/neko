@@ -1,0 +1,29 @@
+#!/bin/bash
+# Pick a tmux session on the default connect host with rofi, then open that
+# session's project folder in proprietary VS Code over Remote-SSH.
+
+# The OSS build (`code` on PATH) can't run Remote-SSH, so call the Microsoft
+# build directly.
+VSCODE="/opt/vscode/bin/code"
+
+HOST=$(connect-host) || exit 1
+
+SESSION=$(connect 2>/dev/null | cut -d: -f1 | rofi -dmenu -p code)
+if [ "$SESSION" == "" ]; then
+  exit 1
+fi
+
+# The directory the session was started in — ~/projects/<name>, or ~/neko
+DIR=$(ssh "$HOST" "tmux display -p -t $(printf '%q' "$SESSION") '#{session_path}'" 2>/dev/null)
+if [ "$DIR" == "" ]; then
+  rofi -e "No session '$SESSION' on $HOST"
+  exit 1
+fi
+
+"$VSCODE" --remote "ssh-remote+$HOST" "$DIR"
+
+# If the folder is already open, VS Code just activates that window, and i3
+# only marks it urgent when it's on a hidden workspace. Focus it explicitly.
+# A new window matches nothing here and takes focus on its own.
+TITLE_REGEX="$(printf '%s' " - $SESSION [SSH: $HOST] - Visual Studio Code" | sed 's/[][\\.^$*+?(){}|]/\\&/g')"
+i3-msg -q "[class=\"^Code$\" title=\"$TITLE_REGEX\"] focus"

@@ -1,0 +1,18 @@
+#!/bin/bash
+# Print the default host for connect and friends: $NEKO_CONNECT_HOST if set,
+# otherwise the first line of ~/.neko/connect-host. Exits 1 if neither is set.
+
+HOST_FILE="$HOME/.neko/connect-host"
+
+HOST="$NEKO_CONNECT_HOST"
+if [ -z "$HOST" ] && [ -f "$HOST_FILE" ]; then
+  HOST="$(head -n1 "$HOST_FILE" | tr -d '[:space:]')"
+fi
+
+if [ -z "$HOST" ]; then
+  echo "connect-host: NEKO_CONNECT_HOST is unset and $HOST_FILE is missing or empty" >&2
+  echo "  Set one, e.g. echo server.home > $HOST_FILE" >&2
+  exit 1
+fi
+
+echo "$HOST"
