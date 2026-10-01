@@ -61,7 +61,7 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 45+ scripts. Key categories:
 
-**Git:** `git-current-branch`, `git-last-branch`, `git-outdated`, `git-usage`, `git-pull-all`, `git-as-gamedevfox`, `git-as-prince86eknj`
+**Git:** `git-current-branch`, `git-last-branch`, `git-outdated`, `git-usage`, `git-pull-all`, `git-as-gamedevfox`, `git-as-prince86eknj`, `gitignore-lint` (checks .gitignore files against the convention in its header)
 
 **Projects:** `projects-list`, `projects-outdated`, `projects-fetch`, `project-open` (rofi-based VS Code opener)
 
@@ -71,11 +71,45 @@ Local overrides live in `~/.neko/` (not tracked): `.zshrc`, `.gitconfig`, `bookm
 
 **Remote:** `connect` (attach to a tmux session on another machine over SSH; default host from `~/.neko/connect-host`, overridable by `$NEKO_CONNECT_HOST`; `connect-open` picks a session with rofi and attaches in a terminal — bound to `$mod+Shift+c`; `connect-code` picks one the same way and opens its folder in proprietary VS Code over Remote-SSH — `$mod+Shift+v`; `connect-host` prints the resolved default host)
 
-**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification), `koneko-notify` (phone notification via Koneko app over NetBird), `claude-ding-hook` (Claude Code Stop/Notification hook: filters noisy types, dings desktop speaker + Koneko), `neko-server` (the per-machine neko daemon — one centralized HTTP service on port 6356 acting as a proxy/control surface for the whole machine: `/ping`, `/ding` (plays the machine's ding sound), tmux `/sessions` + start/stop, `/projects`, `/repos` + clone; consumed by the Koneko phone app and callable machine-to-machine over NetBird; run in a tmux window named `neko-server`)
+**Utilities:** `cols`, `lines`, `filter-comments`, `open-term`, `fork`, `service` (restart-on-crash), `claude-notify` (Telegram notification), `koneko-notify` (phone notification via Koneko app over NetBird), `claude-ding-hook` (Claude Code Stop/Notification hook: filters noisy types, dings desktop speaker + Koneko), `neko-server` (the per-machine neko daemon — one centralized HTTP service on port 6356 acting as a proxy/control surface for the whole machine: `/ping`, `/ding` (plays the machine's ding sound), tmux `/sessions` + start/stop, `/projects`, `/repos` + clone; consumed by the Koneko phone app and callable machine-to-machine over NetBird; runs as a **systemd user service** — see below)
 
 When adding a new script: put it in `bin/`, make it executable (`chmod +x`), use a `#!/bin/bash` or `#!/usr/bin/env <lang>` shebang. No install step needed — `bin/` is already on PATH.
 
 **Passthrough convention:** Scripts that wrap or route to another command must pass `"$@"` through — never re-parse or re-declare args. The destination owns its own argument handling.
+
+## neko-server as a Service
+
+`neko-server` runs as a systemd **user** service (no root needed — every neko
+machine is single-user). The unit is tracked at
+`config/.config/systemd/user/neko-server.service` and symlinked into
+`~/.config/systemd/user/` by `link-neko`.
+
+Machine-local settings go in `~/.neko/neko-server.env` (untracked, optional) —
+e.g. the desktop's ding sound:
+
+```
+NEKO_DING_SOUND=/home/fox/ding-ding-ding.oga
+```
+
+Enable it on a new machine:
+
+```bash
+bin/link-neko
+systemctl --user daemon-reload
+systemctl --user enable --now neko-server.service
+curl http://localhost:6356/ping
+```
+
+Manage it: `systemctl --user status|restart|stop neko-server`, logs via
+`journalctl --user -u neko-server -f`.
+
+The service starts at login and stops at logout. To keep it up when nobody is
+logged in, run `sudo loginctl enable-linger fox` — note that `/ding` needs the
+audio session, so on a machine with a speaker it is normally fine to let it
+follow the login session.
+
+For development, run `node --watch bin/neko-server` in a tmux window instead
+(stop the service first, or the port is taken).
 
 ## Config Files
 

@@ -53,7 +53,7 @@ Each open item must be self-contained enough to reconstruct without the conversa
 ```markdown
 # Agenda — <topic in a few words>
 
-**Position:** 2 of 5
+**Progress:** 1 of 5 complete
 
 ## Open
 
@@ -80,11 +80,13 @@ If the repo root already has an `AGENDA.md`, a walk is in progress — read it a
 4. **One answer can close several items** — resolving item 1 sometimes makes item 4 moot. Say so and mark it, rather than walking to a dead question.
 5. The user may jump the queue. Default order is the order things were raised.
 
-Carry a position marker as a footer while a walk is open:
+Carry a progress marker as a footer while a walk is open — how many items are **closed**, then the one being discussed:
 
 ```
-*Agenda: 2 of 5 — where the file lives*
+*Agenda: 1 of 5 complete — now: where the file lives*
 ```
+
+Count closed items, never the current item's number. After a jump, "7 of 8" reads as nearly done when six items are still open; "1 of 8 complete" can't mislead. Items closed as moot count as complete.
 
 On closing an item, show the remaining list in full rather than the marker alone.
 
